@@ -4,7 +4,7 @@ plugins {
 
 kotlin {
     jvm()
-    js(IR) {
+    js {
         nodejs()
     }
     iosX64()
@@ -15,7 +15,6 @@ kotlin {
     linuxX64()
 
     sourceSets {
-        commonMain.dependencies {}
         commonTest.dependencies {
             implementation(kotlin("test"))
         }
