@@ -1,9 +1,10 @@
 package io.github.mcol.gherkin.types
 
+@Suppress("UNCHECKED_CAST")
 class Params(private val values: List<Any>) {
-    operator fun component1(): Any = values[0]
-    operator fun component2(): Any = values[1]
-    operator fun component3(): Any = values[2]
-    operator fun component4(): Any = values[3]
-    operator fun component5(): Any = values[4]
+    operator fun <T> component1(): T = values[0] as T
+    operator fun <T> component2(): T = values[1] as T
+    operator fun <T> component3(): T = values[2] as T
+    operator fun <T> component4(): T = values[3] as T
+    operator fun <T> component5(): T = values[4] as T
 }
