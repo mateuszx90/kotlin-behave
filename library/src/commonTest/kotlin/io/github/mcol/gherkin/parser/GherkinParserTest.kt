@@ -109,4 +109,51 @@ class GherkinParserTest {
     }
 
     // endregion
+
+    // region background -----------------------------------------------------
+
+    @Test
+    fun `parses background steps`() {
+        val input = """
+            Feature: F
+
+              Background:
+                Given a background step
+
+              Scenario: S
+                When a scenario step
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        assertEquals(1, feature.background?.steps?.size)
+        assertEquals("a background step", feature.background?.steps?.get(0)?.text)
+    }
+
+    @Test
+    fun `background steps are not included in scenario steps`() {
+        val input = """
+            Feature: F
+
+              Background:
+                Given setup
+
+              Scenario: S
+                When action
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        assertEquals(1, feature.scenarios[0].steps.size)
+        assertEquals(Keyword.WHEN, feature.scenarios[0].steps[0].keyword)
+    }
+
+    @Test
+    fun `feature without background has null background`() {
+        val input = """
+            Feature: F
+
+              Scenario: S
+                Given step
+        """.trimIndent()
+        assertEquals(null, GherkinParser.parse(input).background)
+    }
+
+    // endregion
 }
