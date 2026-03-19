@@ -175,4 +175,18 @@ class GherkinRunnerTest {
         val result = GherkinRunner(defs).run(feature)
         assertFalse(result.hasFailures)
     }
+
+    @Test
+    fun `end-to-end gherkin() runs feature file and passes`() {
+        class WordCtx { var count: Int = 0 }
+        val wordSteps = steps(::WordCtx) {
+            Given("the adapter count is {int}") { (n: Int) -> ctx.count = n }
+            Given("adapter count is {int}") { (n: Int) -> ctx.count = n }
+            Then("currently learning count is {int}") { (n: Int) ->
+                val cl = minOf(ctx.count, 10)
+                kotlin.test.assertEquals(n, cl)
+            }
+        }
+        gherkin("features/word_list.feature", wordSteps)
+    }
 }
