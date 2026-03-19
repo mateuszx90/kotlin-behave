@@ -20,7 +20,23 @@ object GherkinParser {
         var exampleHeaders = listOf<String>()
         var inExamples = false
 
+        // DataTable tracking: accumulate table rows for the most recently seen step
+        var pendingStep: Step? = null
+        var tableHeaders: List<String> = emptyList()
+        var tableRows: MutableList<Map<String, String>> = mutableListOf()
+
+        fun flushPendingStep() {
+            pendingStep?.let { step ->
+                val final = if (tableRows.isNotEmpty()) step.copy(dataTable = DataTable(tableRows.toList())) else step
+                currentSteps.add(final)
+            }
+            pendingStep = null
+            tableHeaders = emptyList()
+            tableRows = mutableListOf()
+        }
+
         fun flushScenario() {
+            flushPendingStep()
             if (isBackground) {
                 background = Background(currentSteps.toList())
             } else if (currentScenarioName != null && !isOutline) {
@@ -51,7 +67,7 @@ object GherkinParser {
                     flushScenario()
                     currentScenarioName = line.removePrefix("Scenario:").trim()
                 }
-                line.startsWith("Examples:") -> inExamples = true
+                line.startsWith("Examples:") -> { flushPendingStep(); inExamples = true }
                 inExamples && line.startsWith("|") -> {
                     val cells = parseTableRow(line)
                     if (exampleHeaders.isEmpty()) {
@@ -65,7 +81,17 @@ object GherkinParser {
                         scenarios.add(Scenario("$currentScenarioName [$rowLabel]", resolvedSteps, listOf(row)))
                     }
                 }
-                else -> stepKeyword(line)?.let { (kw, text) -> currentSteps.add(Step(kw, text)) }
+                else -> {
+                    val kwText = stepKeyword(line)
+                    if (kwText != null) {
+                        flushPendingStep()  // commit previous step (with any accumulated table rows)
+                        pendingStep = Step(kwText.first, kwText.second)
+                    } else if (line.startsWith("|") && pendingStep != null && !inExamples) {
+                        val cells = parseTableRow(line)
+                        if (tableHeaders.isEmpty()) tableHeaders = cells
+                        else tableRows.add(tableHeaders.zip(cells).toMap())
+                    }
+                }
             }
         }
         flushScenario()

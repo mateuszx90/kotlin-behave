@@ -199,4 +199,38 @@ class GherkinParserTest {
     }
 
     // endregion
+
+    // region data table -----------------------------------------------------
+
+    @Test
+    fun `parses data table attached to a step`() {
+        val input = """
+            Feature: F
+
+              Scenario: S
+                Given the following words
+                  | word   | translation |
+                  | Hund   | dog         |
+                  | Katze  | cat         |
+        """.trimIndent()
+        val step = GherkinParser.parse(input).scenarios[0].steps[0]
+        assertEquals("the following words", step.text)
+        val table = step.dataTable
+        assertEquals(2, table?.rows?.size)
+        assertEquals("Hund",  table?.rows?.get(0)?.get("word"))
+        assertEquals("cat",   table?.rows?.get(1)?.get("translation"))
+    }
+
+    @Test
+    fun `step without data table has null dataTable`() {
+        val input = """
+            Feature: F
+
+              Scenario: S
+                Given a plain step
+        """.trimIndent()
+        assertEquals(null, GherkinParser.parse(input).scenarios[0].steps[0].dataTable)
+    }
+
+    // endregion
 }
