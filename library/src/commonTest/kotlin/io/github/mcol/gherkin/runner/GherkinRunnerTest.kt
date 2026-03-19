@@ -163,4 +163,16 @@ class GherkinRunnerTest {
     }
 
     // endregion
+
+    @Test
+    fun `reads feature from resources and runs it`() {
+        val defs = steps(::Ctx) {
+            Given("the value is {int}") { (n: Int) -> ctx.value = n }
+            Then("value equals {int}") { (n: Int) -> kotlin.test.assertEquals(n, ctx.value) }
+        }
+        val content = readResource("features/hello.feature")
+        val feature = io.github.mcol.gherkin.parser.GherkinParser.parse(content)
+        val result = GherkinRunner(defs).run(feature)
+        assertFalse(result.hasFailures)
+    }
 }
