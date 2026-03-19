@@ -156,4 +156,47 @@ class GherkinParserTest {
     }
 
     // endregion
+
+    // region scenario outline -----------------------------------------------
+
+    @Test
+    fun `expands scenario outline into flat scenarios per row`() {
+        val input = """
+            Feature: F
+
+              Scenario Outline: counts
+                Given <count> words
+                Then result is <expected>
+
+                Examples:
+                  | count | expected |
+                  | 5     | 5        |
+                  | 11    | 10       |
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        assertEquals(2, feature.scenarios.size)
+        assertEquals("counts [count=5, expected=5]", feature.scenarios[0].name)
+        assertEquals("5 words", feature.scenarios[0].steps[0].text)
+        assertEquals("result is 10", feature.scenarios[1].steps[1].text)
+    }
+
+    @Test
+    fun `outline scenario name includes row values`() {
+        val input = """
+            Feature: F
+
+              Scenario Outline: my outline
+                Given <x>
+
+                Examples:
+                  | x |
+                  | a |
+                  | b |
+        """.trimIndent()
+        val scenarios = GherkinParser.parse(input).scenarios
+        assertEquals("my outline [x=a]", scenarios[0].name)
+        assertEquals("my outline [x=b]", scenarios[1].name)
+    }
+
+    // endregion
 }
