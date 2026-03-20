@@ -35,7 +35,12 @@ class StepDefinitions<C>(
         val allExpressions = entries.map { it.expression } + other.entries.map { it.expression }
         val duplicates = allExpressions.groupBy { it }.filter { it.value.size > 1 }.keys
         if (duplicates.isNotEmpty()) throw DuplicateStepException(duplicates.first())
-        val merged = StepBuilder(factory)
+        val merged = StepBuilder(factory).also { mb ->
+            mb.beforeHooks.addAll(stepBuilder.beforeHooks)
+            mb.beforeHooks.addAll(other.stepBuilder.beforeHooks)
+            mb.afterHooks.addAll(stepBuilder.afterHooks)
+            mb.afterHooks.addAll(other.stepBuilder.afterHooks)
+        }
         return StepDefinitions(factory, merged, entries + other.entries)
     }
 }

@@ -228,6 +228,25 @@ class GherkinRunnerTest {
         assertEquals(listOf(2, 1), order)
     }
 
+    @Test
+    fun `hooks are preserved when step definitions are combined with plus`() {
+        var beforeCount = 0
+        val defs1 = steps(::Ctx) {
+            Before { beforeCount++ }
+            Given("step1") { /* no-op */ }
+        }
+        val defs2 = steps(::Ctx) {
+            Before { beforeCount++ }
+            Given("step2") { /* no-op */ }
+        }
+        val combined = defs1 + defs2
+        val feature = Feature("F", scenarios = listOf(
+            Scenario("s", listOf(Step(Keyword.GIVEN, "step1"), Step(Keyword.GIVEN, "step2")))
+        ))
+        GherkinRunner(combined).run(feature)
+        assertEquals(2, beforeCount)  // both Before hooks ran once each
+    }
+
     // endregion
 
     @Test
