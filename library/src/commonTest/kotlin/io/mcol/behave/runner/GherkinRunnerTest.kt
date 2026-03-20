@@ -285,7 +285,7 @@ class GherkinRunnerTest {
     }
 
     @Test
-    fun `per-scenario runner executes Before hooks inside run()`() {
+    fun `per-scenario runner executes Before hooks inside run lambda`() {
         var beforeCount = 0
         val defs = steps(::Ctx) {
             Before { beforeCount++ }
@@ -316,7 +316,7 @@ class GherkinRunnerTest {
     }
 
     @Test
-    fun `end-to-end gherkin() runs feature file and passes`() {
+    fun `end-to-end gherkin runs feature file and passes`() {
         class WordCtx { var count: Int = 0 }
         val wordSteps = steps(::WordCtx) {
             Given("the adapter count is {int}") { (n: Int) -> ctx.count = n }

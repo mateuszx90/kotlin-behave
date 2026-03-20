@@ -77,7 +77,7 @@ class StepBuilderTest {
     // region pending --------------------------------------------------------
 
     @Test
-    fun `pending() throws PendingException`() {
+    fun `pending throws PendingException`() {
         val defs = steps(::Ctx) {
             Given("not done yet") { pending() }
         }
