@@ -249,6 +249,60 @@ class GherkinRunnerTest {
 
     // endregion
 
+    // region per-scenario runner ---------------------------------------------
+
+    @Test
+    fun `per-scenario runner is called once per scenario`() {
+        var callCount = 0
+        val defs = steps(::Ctx) { Given("step") { /* no-op */ } }
+        val feature = Feature("F", scenarios = listOf(
+            Scenario("first",  listOf(Step(Keyword.GIVEN, "step"))),
+            Scenario("second", listOf(Step(Keyword.GIVEN, "step"))),
+        ))
+        GherkinRunner(defs).runWithPerScenarioRunner(feature) { _, run ->
+            callCount++
+            run()
+        }
+        assertEquals(2, callCount)
+    }
+
+    @Test
+    fun `per-scenario runner receives fresh ctx for each scenario`() {
+        data class TrackCtx(var id: Int = 0)
+        var idCounter = 0
+        val defs = steps({ TrackCtx(++idCounter) }) { Given("step") { /* no-op */ } }
+        val seenIds = mutableListOf<Int>()
+        val feature = Feature("F", scenarios = listOf(
+            Scenario("first",  listOf(Step(Keyword.GIVEN, "step"))),
+            Scenario("second", listOf(Step(Keyword.GIVEN, "step"))),
+        ))
+        GherkinRunner(defs).runWithPerScenarioRunner(feature) { ctx, run ->
+            seenIds.add(ctx.id)
+            run()
+        }
+        assertEquals(2, seenIds.size)
+        assertFalse(seenIds[0] == seenIds[1])  // different instances
+    }
+
+    @Test
+    fun `per-scenario runner executes Before hooks inside run()`() {
+        var beforeCount = 0
+        val defs = steps(::Ctx) {
+            Before { beforeCount++ }
+            Given("step") { /* no-op */ }
+        }
+        val feature = Feature("F", scenarios = listOf(
+            Scenario("s", listOf(Step(Keyword.GIVEN, "step")))
+        ))
+        GherkinRunner(defs).runWithPerScenarioRunner(feature) { _, run ->
+            assertEquals(0, beforeCount)  // Before not yet called
+            run()
+            assertEquals(1, beforeCount)  // Before called inside run()
+        }
+    }
+
+    // endregion
+
     @Test
     fun `reads feature from resources and runs it`() {
         val defs = steps(::Ctx) {
