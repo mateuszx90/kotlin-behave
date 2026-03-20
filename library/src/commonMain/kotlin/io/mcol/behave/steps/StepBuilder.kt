@@ -8,12 +8,17 @@ import io.mcol.behave.types.Params
 class StepBuilder<C>(val factory: () -> C) {
     var ctx: C = factory()
     private val entries = mutableListOf<StepEntry<C>>()
+    internal val beforeHooks = mutableListOf<() -> Unit>()
+    internal val afterHooks  = mutableListOf<() -> Unit>()
+
+    fun Before(fn: () -> Unit) { beforeHooks.add(fn) }
+    fun After(fn: () -> Unit)  { afterHooks.add(fn) }
 
     fun Given(expr: String, fn: (Params) -> Unit) = register(expr, fn)
-    fun When(expr: String, fn: (Params) -> Unit) = register(expr, fn)
-    fun Then(expr: String, fn: (Params) -> Unit) = register(expr, fn)
-    fun And(expr: String, fn: (Params) -> Unit) = register(expr, fn)
-    fun But(expr: String, fn: (Params) -> Unit) = register(expr, fn)
+    fun When(expr: String, fn: (Params) -> Unit)  = register(expr, fn)
+    fun Then(expr: String, fn: (Params) -> Unit)  = register(expr, fn)
+    fun And(expr: String, fn: (Params) -> Unit)   = register(expr, fn)
+    fun But(expr: String, fn: (Params) -> Unit)   = register(expr, fn)
 
     fun pending(message: String = "Step is pending"): Nothing = throw PendingException(message)
 

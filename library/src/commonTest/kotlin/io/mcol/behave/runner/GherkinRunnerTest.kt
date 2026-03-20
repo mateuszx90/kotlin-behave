@@ -164,6 +164,72 @@ class GherkinRunnerTest {
 
     // endregion
 
+    // region hooks -----------------------------------------------------------
+
+    @Test
+    fun `Before hook runs once per scenario`() {
+        var beforeCount = 0
+        val defs = steps(::Ctx) {
+            Before { beforeCount++ }
+            Given("step") { /* no-op */ }
+        }
+        val feature = Feature("F", scenarios = listOf(
+            Scenario("first",  listOf(Step(Keyword.GIVEN, "step"))),
+            Scenario("second", listOf(Step(Keyword.GIVEN, "step"))),
+        ))
+        GherkinRunner(defs).run(feature)
+        assertEquals(2, beforeCount)
+    }
+
+    @Test
+    fun `After hook always runs even when step fails`() {
+        var afterRan = false
+        val defs = steps(::Ctx) {
+            After { afterRan = true }
+            Given("fail") { throw AssertionError("boom") }
+        }
+        val feature = Feature("F", scenarios = listOf(
+            Scenario("s", listOf(Step(Keyword.GIVEN, "fail")))
+        ))
+        GherkinRunner(defs).run(feature)
+        assertTrue(afterRan)
+    }
+
+    @Test
+    fun `Before hook failure skips steps but After still runs`() {
+        var stepRan = false
+        var afterRan = false
+        val defs = steps(::Ctx) {
+            Before { throw AssertionError("before failed") }
+            After  { afterRan = true }
+            Given("step") { stepRan = true }
+        }
+        val feature = Feature("F", scenarios = listOf(
+            Scenario("s", listOf(Step(Keyword.GIVEN, "step")))
+        ))
+        val result = GherkinRunner(defs).run(feature)
+        assertTrue(result.hasFailures)
+        assertFalse(stepRan)
+        assertTrue(afterRan)
+    }
+
+    @Test
+    fun `After hooks run in reverse registration order`() {
+        val order = mutableListOf<Int>()
+        val defs = steps(::Ctx) {
+            After { order.add(1) }
+            After { order.add(2) }
+            Given("step") { /* no-op */ }
+        }
+        val feature = Feature("F", scenarios = listOf(
+            Scenario("s", listOf(Step(Keyword.GIVEN, "step")))
+        ))
+        GherkinRunner(defs).run(feature)
+        assertEquals(listOf(2, 1), order)
+    }
+
+    // endregion
+
     @Test
     fun `reads feature from resources and runs it`() {
         val defs = steps(::Ctx) {
