@@ -1,4 +1,4 @@
-rootProject.name = "kotlin-gherkin"
+rootProject.name = "kotlin-behave"
 include(":library")
 
 dependencyResolutionManagement {

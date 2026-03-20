@@ -2,6 +2,9 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform)
 }
 
+group = "io.mcol.kotlin-behave"
+version = "0.1.0"
+
 kotlin {
     jvm()
     js {
