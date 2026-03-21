@@ -76,38 +76,67 @@ fun <C> FreeSpec.gherkin(
     }
 }
 
-fun <C> FreeSpec.gherkin(path: String, steps: StepDefinitions<C>) {
+/**
+ * @param scenarioAsTest when `true` each scenario is a single leaf test that runs all steps
+ *   together (hooks included). When `false` (default) each step is its own leaf test inside
+ *   a scenario container, matching classic BDD IDE reporting.
+ */
+fun <C> FreeSpec.gherkin(
+    path: String,
+    steps: StepDefinitions<C>,
+    scenarioAsTest: Boolean = false,
+) {
     val feature = loadFeature(path)
 
-    beforeContainer { testCase ->
-        if (testCase.name.testName.startsWith("Scenario:")) {
-            steps.stepBuilder.ctx = steps.factory()
-            steps.stepBuilder.beforeHooks.forEach { it() }
+    if (scenarioAsTest) {
+        "Feature: ${feature.name}" - {
+            for (scenario in feature.scenarios) {
+                val scenarioSteps = (feature.background?.steps ?: emptyList()) + scenario.steps
+                "Scenario: ${scenario.name}" {
+                    steps.stepBuilder.ctx = steps.factory()
+                    steps.stepBuilder.beforeHooks.forEach { it() }
+                    try {
+                        for (step in scenarioSteps) {
+                            val stepFn = steps.find(step.text)
+                            stepFn?.invoke() ?: throw MissingStepException(step.text)
+                        }
+                    } finally {
+                        steps.stepBuilder.afterHooks.asReversed().forEach { runCatching { it() } }
+                    }
+                }
+            }
         }
-    }
-    afterContainer { (testCase, _) ->
-        if (testCase.name.testName.startsWith("Scenario:")) {
-            steps.stepBuilder.afterHooks.asReversed().forEach { runCatching { it() } }
+    } else {
+        beforeContainer { testCase ->
+            if (testCase.name.testName.startsWith("Scenario:")) {
+                steps.stepBuilder.ctx = steps.factory()
+                steps.stepBuilder.beforeHooks.forEach { it() }
+            }
         }
-    }
+        afterContainer { (testCase, _) ->
+            if (testCase.name.testName.startsWith("Scenario:")) {
+                steps.stepBuilder.afterHooks.asReversed().forEach { runCatching { it() } }
+            }
+        }
 
-    "Feature: ${feature.name}" - {
-        for (scenario in feature.scenarios) {
-            val scenarioSteps = (feature.background?.steps ?: emptyList()) + scenario.steps
-            "Scenario: ${scenario.name}" - {
-                var scenarioFailed = false
-                for (step in scenarioSteps) {
-                    val stepFn = steps.find(step.text)
-                    step.text {
-                        if (!scenarioFailed) {
-                            try {
-                                stepFn?.invoke() ?: throw MissingStepException(step.text)
-                            } catch (e: PendingException) {
-                                scenarioFailed = true
-                                println("  [PENDING] ${step.text}")
-                            } catch (e: Throwable) {
-                                scenarioFailed = true
-                                throw e
+        "Feature: ${feature.name}" - {
+            for (scenario in feature.scenarios) {
+                val scenarioSteps = (feature.background?.steps ?: emptyList()) + scenario.steps
+                "Scenario: ${scenario.name}" - {
+                    var scenarioFailed = false
+                    for (step in scenarioSteps) {
+                        val stepFn = steps.find(step.text)
+                        step.text {
+                            if (!scenarioFailed) {
+                                try {
+                                    stepFn?.invoke() ?: throw MissingStepException(step.text)
+                                } catch (e: PendingException) {
+                                    scenarioFailed = true
+                                    println("  [PENDING] ${step.text}")
+                                } catch (e: Throwable) {
+                                    scenarioFailed = true
+                                    throw e
+                                }
                             }
                         }
                     }
