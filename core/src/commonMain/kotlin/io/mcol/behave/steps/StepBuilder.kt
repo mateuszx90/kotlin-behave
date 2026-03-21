@@ -5,8 +5,8 @@ import io.mcol.behave.types.Params
 class StepBuilder<C>(val factory: () -> C) {
     var ctx: C = factory()
     private val entries = mutableListOf<StepEntry<C>>()
-    internal val beforeHooks = mutableListOf<suspend () -> Unit>()
-    internal val afterHooks  = mutableListOf<suspend () -> Unit>()
+    val beforeHooks = mutableListOf<suspend () -> Unit>()
+    val afterHooks  = mutableListOf<suspend () -> Unit>()
 
     fun Before(fn: suspend () -> Unit) { beforeHooks.add(fn) }
     fun After(fn: suspend () -> Unit)  { afterHooks.add(fn) }
