@@ -4,8 +4,10 @@ import io.mcol.behave.model.Feature
 import io.mcol.behave.parser.GherkinParser
 import io.mcol.behave.steps.StepDefinitions
 
+private val featureCache = mutableMapOf<String, Feature>()
+
 /** Parse a .feature file from test resources. Path is classpath-relative, e.g. "features/foo.feature". */
-fun loadFeature(path: String): Feature = GherkinParser.parse(readResource(path))
+fun loadFeature(path: String): Feature = featureCache.getOrPut(path) { GherkinParser.parse(readResource(path)) }
 
 /** Run all scenarios in [path] against [steps]. Suspend — call from runTest {} or a Kotest spec. */
 suspend fun <C> gherkin(path: String, steps: StepDefinitions<C>) {
