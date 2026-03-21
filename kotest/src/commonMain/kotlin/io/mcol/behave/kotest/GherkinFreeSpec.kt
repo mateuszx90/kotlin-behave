@@ -1,10 +1,11 @@
 package io.mcol.behave.kotest
 
 import io.kotest.core.spec.style.FreeSpec
+import io.mcol.behave.runner.GherkinRunner
+import io.mcol.behave.runner.loadFeature
 import io.mcol.behave.steps.MissingStepException
 import io.mcol.behave.steps.PendingException
 import io.mcol.behave.steps.StepDefinitions
-import io.mcol.behave.runner.loadFeature
 
 /**
  * Register a Gherkin feature file as a Kotest FreeSpec test tree.
@@ -32,6 +33,49 @@ import io.mcol.behave.runner.loadFeature
  * Pending steps: appear green with "[PENDING]" in console; remaining steps skip.
  * Steps after failure: silently skip (appear green/no-op in the IDE tree).
  */
+/**
+ * Per-scenario variant for use with Compose UI tests (or any test that needs a
+ * per-scenario setup/teardown wrapper).
+ *
+ * ```kotlin
+ * class LearningGherkinTest : FreeSpec({
+ *     gherkin("features/learning_screen.feature", learningSteps) { ctx, run ->
+ *         runTestWithEnglishLocale { _ ->
+ *             ctx.compose = this
+ *             withScenarioTimeout(10_000) { run() }
+ *         }
+ *     }
+ * })
+ * ```
+ *
+ * Generated tree:
+ *   Feature: <name>          ← container
+ *     Scenario: <name>       ← leaf test (all steps run inside runScenario)
+ *
+ * [runScenario] receives the fresh ctx and a blocking [run] lambda. Call [run] to execute
+ * Before hooks → Background steps → Scenario steps → After hooks for that scenario.
+ * Non-suspend; bridges to suspend internally via SuspendBridge (JVM only).
+ */
+fun <C> FreeSpec.gherkin(
+    path: String,
+    steps: StepDefinitions<C>,
+    runScenario: (ctx: C, run: () -> Unit) -> Unit,
+) {
+    val feature = loadFeature(path)
+    "Feature: ${feature.name}" - {
+        for (scenario in feature.scenarios) {
+            "Scenario: ${scenario.name}" {
+                val singleScenario = feature.copy(scenarios = listOf(scenario))
+                val result = GherkinRunner(steps).runWithPerScenarioRunner(singleScenario, runScenario)
+                if (result.hasFailures) {
+                    val failed = result.scenarios.first { !it.passed && !it.pending }
+                    throw failed.error ?: AssertionError("Scenario '${failed.name}' failed at step: ${failed.failedStep}")
+                }
+            }
+        }
+    }
+}
+
 fun <C> FreeSpec.gherkin(path: String, steps: StepDefinitions<C>) {
     val feature = loadFeature(path)
 
