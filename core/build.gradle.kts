@@ -20,6 +20,11 @@ kotlin {
     sourceSets {
         commonTest.dependencies {
             implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
+        }
+        // kotlinx-coroutines-core is needed in jvmMain for runBlocking in SuspendBridge
+        jvmMain.dependencies {
+            implementation(libs.kotlinx.coroutines.core)
         }
     }
 }

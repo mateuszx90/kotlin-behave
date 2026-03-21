@@ -6,6 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.assertFalse
+import kotlinx.coroutines.test.runTest
 
 class GherkinRunnerTest {
 
@@ -18,16 +19,14 @@ class GherkinRunnerTest {
 
     private fun makeSteps() = steps(::Ctx) {
         Given("I have {int} words") { (n: Int) -> ctx.value = n }
-        Then("value is {int}") { (n: Int) ->
-            kotlin.test.assertEquals(n, ctx.value)
-        }
+        Then("value is {int}") { (n: Int) -> kotlin.test.assertEquals(n, ctx.value) }
         Then("this is pending") { pending() }
     }
 
     // region passing ---------------------------------------------------------
 
     @Test
-    fun `passing scenario produces passed result`() {
+    fun `passing scenario produces passed result`() = runTest {
         val feature = simpleFeature(
             Step(Keyword.GIVEN, "I have 5 words"),
             Step(Keyword.THEN, "value is 5"),
@@ -42,10 +41,10 @@ class GherkinRunnerTest {
     // region failing ---------------------------------------------------------
 
     @Test
-    fun `failing step marks scenario as failed`() {
+    fun `failing step marks scenario as failed`() = runTest {
         val feature = simpleFeature(
             Step(Keyword.GIVEN, "I have 5 words"),
-            Step(Keyword.THEN, "value is 99"),  // will fail
+            Step(Keyword.THEN, "value is 99"),
         )
         val result = GherkinRunner(makeSteps()).run(feature)
         assertFalse(result.scenarios[0].passed)
@@ -53,7 +52,7 @@ class GherkinRunnerTest {
     }
 
     @Test
-    fun `remaining steps are skipped after first failure`() {
+    fun `remaining steps are skipped after first failure`() = runTest {
         var secondStepRan = false
         val defs = steps(::Ctx) {
             Given("fail") { throw AssertionError("boom") }
@@ -68,7 +67,7 @@ class GherkinRunnerTest {
     }
 
     @Test
-    fun `all scenarios run even when one fails`() {
+    fun `all scenarios run even when one fails`() = runTest {
         var secondScenarioRan = false
         val defs = steps(::Ctx) {
             Given("fail") { throw AssertionError("boom") }
@@ -87,7 +86,7 @@ class GherkinRunnerTest {
     // region missing step ---------------------------------------------------
 
     @Test
-    fun `missing step marks scenario as failed with MissingStepException`() {
+    fun `missing step marks scenario as failed with MissingStepException`() = runTest {
         val feature = simpleFeature(Step(Keyword.GIVEN, "no matching step"))
         val result = GherkinRunner(makeSteps()).run(feature)
         assertFalse(result.scenarios[0].passed)
@@ -99,7 +98,7 @@ class GherkinRunnerTest {
     // region pending --------------------------------------------------------
 
     @Test
-    fun `pending step marks scenario as pending not failed`() {
+    fun `pending step marks scenario as pending not failed`() = runTest {
         val feature = simpleFeature(Step(Keyword.THEN, "this is pending"))
         val result = GherkinRunner(makeSteps()).run(feature)
         assertTrue(result.scenarios[0].pending)
@@ -112,7 +111,7 @@ class GherkinRunnerTest {
     // region background -----------------------------------------------------
 
     @Test
-    fun `background steps run before each scenario`() {
+    fun `background steps run before each scenario`() = runTest {
         val defs = steps(::Ctx) {
             Given("setup") { ctx.value = 10 }
             Then("value is {int}") { (n: Int) -> kotlin.test.assertEquals(n, ctx.value) }
@@ -121,16 +120,15 @@ class GherkinRunnerTest {
             name = "F",
             background = Background(listOf(Step(Keyword.GIVEN, "setup"))),
             scenarios = listOf(
-                Scenario("first", listOf(Step(Keyword.THEN, "value is 10"))),
+                Scenario("first",  listOf(Step(Keyword.THEN, "value is 10"))),
                 Scenario("second", listOf(Step(Keyword.THEN, "value is 10"))),
             ),
         )
-        val result = GherkinRunner(defs).run(feature)
-        assertFalse(result.hasFailures)
+        assertFalse(GherkinRunner(defs).run(feature).hasFailures)
     }
 
     @Test
-    fun `ctx is fresh for each scenario`() {
+    fun `ctx is fresh for each scenario`() = runTest {
         val defs = steps(::Ctx) {
             Given("set {int}") { (n: Int) -> ctx.value = n }
             Then("value is {int}") { (n: Int) -> kotlin.test.assertEquals(n, ctx.value) }
@@ -139,12 +137,11 @@ class GherkinRunnerTest {
             Scenario("first",  listOf(Step(Keyword.GIVEN, "set 1"), Step(Keyword.THEN, "value is 1"))),
             Scenario("second", listOf(Step(Keyword.GIVEN, "set 2"), Step(Keyword.THEN, "value is 2"))),
         ))
-        val result = GherkinRunner(defs).run(feature)
-        assertFalse(result.hasFailures)
+        assertFalse(GherkinRunner(defs).run(feature).hasFailures)
     }
 
     @Test
-    fun `background runs before each expanded outline scenario`() {
+    fun `background runs before each expanded outline scenario`() = runTest {
         val defs = steps(::Ctx) {
             Given("setup") { ctx.value = 10 }
             Given("add {int}") { (n: Int) -> ctx.value += n }
@@ -158,8 +155,7 @@ class GherkinRunnerTest {
                 Scenario("add [n=5]", listOf(Step(Keyword.GIVEN, "add 5"), Step(Keyword.THEN, "value is 15"))),
             ),
         )
-        val result = GherkinRunner(defs).run(feature)
-        assertFalse(result.hasFailures)
+        assertFalse(GherkinRunner(defs).run(feature).hasFailures)
     }
 
     // endregion
@@ -167,11 +163,11 @@ class GherkinRunnerTest {
     // region hooks -----------------------------------------------------------
 
     @Test
-    fun `Before hook runs once per scenario`() {
+    fun `Before hook runs once per scenario`() = runTest {
         var beforeCount = 0
         val defs = steps(::Ctx) {
             Before { beforeCount++ }
-            Given("step") { /* no-op */ }
+            Given("step") { }
         }
         val feature = Feature("F", scenarios = listOf(
             Scenario("first",  listOf(Step(Keyword.GIVEN, "step"))),
@@ -182,7 +178,7 @@ class GherkinRunnerTest {
     }
 
     @Test
-    fun `After hook always runs even when step fails`() {
+    fun `After hook always runs even when step fails`() = runTest {
         var afterRan = false
         val defs = steps(::Ctx) {
             After { afterRan = true }
@@ -196,7 +192,7 @@ class GherkinRunnerTest {
     }
 
     @Test
-    fun `Before hook failure skips steps but After still runs`() {
+    fun `Before hook failure skips steps but After still runs`() = runTest {
         var stepRan = false
         var afterRan = false
         val defs = steps(::Ctx) {
@@ -214,12 +210,12 @@ class GherkinRunnerTest {
     }
 
     @Test
-    fun `After hooks run in reverse registration order`() {
+    fun `After hooks run in reverse registration order`() = runTest {
         val order = mutableListOf<Int>()
         val defs = steps(::Ctx) {
             After { order.add(1) }
             After { order.add(2) }
-            Given("step") { /* no-op */ }
+            Given("step") { }
         }
         val feature = Feature("F", scenarios = listOf(
             Scenario("s", listOf(Step(Keyword.GIVEN, "step")))
@@ -229,32 +225,33 @@ class GherkinRunnerTest {
     }
 
     @Test
-    fun `hooks are preserved when step definitions are combined with plus`() {
+    fun `hooks are preserved when step definitions are combined with plus`() = runTest {
         var beforeCount = 0
         val defs1 = steps(::Ctx) {
             Before { beforeCount++ }
-            Given("step1") { /* no-op */ }
+            Given("step1") { }
         }
         val defs2 = steps(::Ctx) {
             Before { beforeCount++ }
-            Given("step2") { /* no-op */ }
+            Given("step2") { }
         }
         val combined = defs1 + defs2
         val feature = Feature("F", scenarios = listOf(
             Scenario("s", listOf(Step(Keyword.GIVEN, "step1"), Step(Keyword.GIVEN, "step2")))
         ))
         GherkinRunner(combined).run(feature)
-        assertEquals(2, beforeCount)  // both Before hooks ran once each
+        assertEquals(2, beforeCount)
     }
 
     // endregion
 
-    // region per-scenario runner ---------------------------------------------
+    // region per-scenario runner (non-suspend) --------------------------------
+    // These tests do NOT use runTest — runWithPerScenarioRunner is non-suspend.
 
     @Test
     fun `per-scenario runner is called once per scenario`() {
         var callCount = 0
-        val defs = steps(::Ctx) { Given("step") { /* no-op */ } }
+        val defs = steps(::Ctx) { Given("step") { } }
         val feature = Feature("F", scenarios = listOf(
             Scenario("first",  listOf(Step(Keyword.GIVEN, "step"))),
             Scenario("second", listOf(Step(Keyword.GIVEN, "step"))),
@@ -270,7 +267,7 @@ class GherkinRunnerTest {
     fun `per-scenario runner receives fresh ctx for each scenario`() {
         data class TrackCtx(var id: Int = 0)
         var idCounter = 0
-        val defs = steps({ TrackCtx(++idCounter) }) { Given("step") { /* no-op */ } }
+        val defs = steps({ TrackCtx(++idCounter) }) { Given("step") { } }
         val seenIds = mutableListOf<Int>()
         val feature = Feature("F", scenarios = listOf(
             Scenario("first",  listOf(Step(Keyword.GIVEN, "step"))),
@@ -281,7 +278,7 @@ class GherkinRunnerTest {
             run()
         }
         assertEquals(2, seenIds.size)
-        assertFalse(seenIds[0] == seenIds[1])  // different instances
+        assertFalse(seenIds[0] == seenIds[1])
     }
 
     @Test
@@ -289,41 +286,39 @@ class GherkinRunnerTest {
         var beforeCount = 0
         val defs = steps(::Ctx) {
             Before { beforeCount++ }
-            Given("step") { /* no-op */ }
+            Given("step") { }
         }
         val feature = Feature("F", scenarios = listOf(
             Scenario("s", listOf(Step(Keyword.GIVEN, "step")))
         ))
         GherkinRunner(defs).runWithPerScenarioRunner(feature) { _, run ->
-            assertEquals(0, beforeCount)  // Before not yet called
+            assertEquals(0, beforeCount)
             run()
-            assertEquals(1, beforeCount)  // Before called inside run()
+            assertEquals(1, beforeCount)
         }
     }
 
     // endregion
 
     @Test
-    fun `reads feature from resources and runs it`() {
+    fun `reads feature from resources and runs it`() = runTest {
         val defs = steps(::Ctx) {
             Given("the value is {int}") { (n: Int) -> ctx.value = n }
             Then("value equals {int}") { (n: Int) -> kotlin.test.assertEquals(n, ctx.value) }
         }
         val content = readResource("features/hello.feature")
         val feature = io.mcol.behave.parser.GherkinParser.parse(content)
-        val result = GherkinRunner(defs).run(feature)
-        assertFalse(result.hasFailures)
+        assertFalse(GherkinRunner(defs).run(feature).hasFailures)
     }
 
     @Test
-    fun `end-to-end gherkin runs feature file and passes`() {
+    fun `end-to-end gherkin runs feature file and passes`() = runTest {
         class WordCtx { var count: Int = 0 }
         val wordSteps = steps(::WordCtx) {
             Given("the adapter count is {int}") { (n: Int) -> ctx.count = n }
             Given("adapter count is {int}") { (n: Int) -> ctx.count = n }
             Then("currently learning count is {int}") { (n: Int) ->
-                val cl = minOf(ctx.count, 10)
-                kotlin.test.assertEquals(n, cl)
+                kotlin.test.assertEquals(n, minOf(ctx.count, 10))
             }
         }
         gherkin("features/word_list.feature", wordSteps)

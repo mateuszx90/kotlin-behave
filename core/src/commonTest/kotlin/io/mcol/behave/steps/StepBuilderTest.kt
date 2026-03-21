@@ -1,10 +1,10 @@
 package io.mcol.behave.steps
 
-import io.mcol.behave.types.Params
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
+import kotlinx.coroutines.test.runTest
 
 class StepBuilderTest {
 
@@ -13,28 +13,25 @@ class StepBuilderTest {
     // region step registration ----------------------------------------------
 
     @Test
-    fun `registered Given step is found by matching text`() {
+    fun `registered Given step is found by matching text`() = runTest {
         val defs = steps(::Ctx) {
             Given("I have {int} words") { (n: Int) -> ctx.value = n }
         }
-        val entry = defs.find("I have 5 words")
-        assertNotNull(entry)
+        assertNotNull(defs.find("I have 5 words"))
     }
 
     @Test
-    fun `step lambda receives converted params and updates ctx`() {
+    fun `step lambda receives converted params and updates ctx`() = runTest {
         val defs = steps(::Ctx) {
             Given("I have {int} words") { (n: Int) -> ctx.value = n }
         }
-        // Swap ctx to a fresh instance (simulates runner behaviour)
         defs.stepBuilder.ctx = Ctx()
-        // find() returns a no-arg lambda that closes over the step's captured StepBuilder
         defs.find("I have 7 words")!!.invoke()
         assertEquals(7, defs.stepBuilder.ctx.value)
     }
 
     @Test
-    fun `ctx is replaced per scenario`() {
+    fun `ctx is replaced per scenario`() = runTest {
         val defs = steps(::Ctx) {
             Given("set {int}") { (n: Int) -> ctx.value = n }
         }
@@ -45,7 +42,7 @@ class StepBuilderTest {
     }
 
     @Test
-    fun `unregistered step text returns null`() {
+    fun `unregistered step text returns null`() = runTest {
         val defs = steps(::Ctx) {
             Given("I have {int} words") { }
         }
@@ -57,7 +54,7 @@ class StepBuilderTest {
     // region composition ----------------------------------------------------
 
     @Test
-    fun `two StepDefinitions can be merged with + operator`() {
+    fun `two StepDefinitions can be merged with + operator`() = runTest {
         val a = steps(::Ctx) { Given("step A") { ctx.value = 1 } }
         val b = steps(::Ctx) { Given("step B") { ctx.value = 2 } }
         val merged = a + b
@@ -77,7 +74,7 @@ class StepBuilderTest {
     // region pending --------------------------------------------------------
 
     @Test
-    fun `pending throws PendingException`() {
+    fun `pending throws PendingException`() = runTest {
         val defs = steps(::Ctx) {
             Given("not done yet") { pending() }
         }

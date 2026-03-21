@@ -23,7 +23,7 @@ data class RunResult(
 
 class GherkinRunner<C>(private val stepDefinitions: StepDefinitions<C>) {
 
-    fun run(feature: Feature): RunResult {
+    suspend fun run(feature: Feature): RunResult {
         val results = feature.scenarios.map { scenario ->
             stepDefinitions.stepBuilder.ctx = stepDefinitions.factory()
             executeScenario(feature, scenario)
@@ -32,6 +32,10 @@ class GherkinRunner<C>(private val stepDefinitions: StepDefinitions<C>) {
         return RunResult(feature.name, results)
     }
 
+    /**
+     * Non-suspend: runScenario and the run lambda it receives are plain blocking.
+     * executeScenario (suspend) is bridged via runSuspendBlocking — JVM only.
+     */
     fun runWithPerScenarioRunner(
         feature: Feature,
         runScenario: (ctx: C, run: () -> Unit) -> Unit,
@@ -40,7 +44,7 @@ class GherkinRunner<C>(private val stepDefinitions: StepDefinitions<C>) {
             val ctx = stepDefinitions.factory()
             stepDefinitions.stepBuilder.ctx = ctx
             var result = ScenarioResult(scenario.name, passed = true)
-            val run = { result = executeScenario(feature, scenario) }
+            val run: () -> Unit = { result = runSuspendBlocking { executeScenario(feature, scenario) } }
             runScenario(ctx, run)
             result
         }
@@ -48,7 +52,7 @@ class GherkinRunner<C>(private val stepDefinitions: StepDefinitions<C>) {
         return RunResult(feature.name, results)
     }
 
-    private fun executeScenario(feature: Feature, scenario: Scenario): ScenarioResult {
+    internal suspend fun executeScenario(feature: Feature, scenario: Scenario): ScenarioResult {
         val beforeHooks = stepDefinitions.stepBuilder.beforeHooks
         val afterHooks  = stepDefinitions.stepBuilder.afterHooks
 
@@ -56,13 +60,11 @@ class GherkinRunner<C>(private val stepDefinitions: StepDefinitions<C>) {
         var failedStep: String?   = null
         var isPending             = false
 
-        // Before hooks — stop on first failure
         for (hook in beforeHooks) {
             if (stepError != null) break
             try { hook() } catch (e: Throwable) { stepError = e; failedStep = "<Before hook>" }
         }
 
-        // Steps — only if Before passed; stop on first failure
         if (stepError == null) {
             val allSteps = (feature.background?.steps ?: emptyList()) + scenario.steps
             for (step in allSteps) {
@@ -80,7 +82,6 @@ class GherkinRunner<C>(private val stepDefinitions: StepDefinitions<C>) {
             }
         }
 
-        // After hooks — always run in reverse; record first error only
         for (hook in afterHooks.asReversed()) {
             try { hook() }
             catch (e: Throwable) {
@@ -95,7 +96,7 @@ class GherkinRunner<C>(private val stepDefinitions: StepDefinitions<C>) {
         }
     }
 
-    private fun printResults(featureName: String, results: List<ScenarioResult>) {
+    internal fun printResults(featureName: String, results: List<ScenarioResult>) {
         println("\nFeature: $featureName\n")
         for (r in results) {
             when {

@@ -7,11 +7,9 @@ class DuplicateStepException(expr: String) : Exception("Duplicate step expressio
 class PendingException(msg: String = "Step is pending") : Exception(msg)
 class MissingStepException(text: String) : Exception("No step definition found for: \"$text\"")
 
-// fn is a plain lambda — NOT an extension on C.
-// It captures ctx via the enclosing StepBuilder receiver from the steps {} block.
 data class StepEntry<C>(
     val expression: String,
-    val fn: (Params) -> Unit,
+    val fn: suspend (Params) -> Unit,
 )
 
 class StepDefinitions<C>(
@@ -19,9 +17,7 @@ class StepDefinitions<C>(
     val stepBuilder: StepBuilder<C>,
     internal val entries: List<StepEntry<C>>,
 ) {
-    // Returns a no-arg lambda that, when called, executes the matched step.
-    // The step lambda reads ctx from the StepBuilder it captured at definition time.
-    fun find(stepText: String): (() -> Unit)? {
+    fun find(stepText: String): (suspend () -> Unit)? {
         for (entry in entries) {
             val compiled = TypeRegistry.compile(entry.expression)
             val match = compiled.regex.matchEntire(stepText) ?: continue
