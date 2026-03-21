@@ -23,7 +23,7 @@ object GherkinParser {
         // DataTable tracking: accumulate table rows for the most recently seen step
         var pendingStep: Step? = null
         var tableHeaders: List<String> = emptyList()
-        var tableRows: MutableList<Map<String, String>> = mutableListOf()
+        var tableRows: MutableList<Map<String, String?>> = mutableListOf()
 
         fun flushPendingStep() {
             pendingStep?.let { step ->
@@ -89,7 +89,7 @@ object GherkinParser {
                     } else if (line.startsWith("|") && pendingStep != null && !inExamples) {
                         val cells = parseTableRow(line)
                         if (tableHeaders.isEmpty()) tableHeaders = cells
-                        else tableRows.add(tableHeaders.zip(cells).toMap())
+                        else tableRows.add(tableHeaders.zip(cells.map { if (it == "null") null else it }).toMap())
                     }
                 }
             }

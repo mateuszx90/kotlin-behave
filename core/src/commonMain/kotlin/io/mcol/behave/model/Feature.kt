@@ -2,7 +2,7 @@ package io.mcol.behave.model
 
 enum class Keyword { GIVEN, WHEN, THEN, AND, BUT }
 
-data class DataTable(val rows: List<Map<String, String>>)
+data class DataTable(val rows: List<Map<String, String?>>)
 
 data class Step(
     val keyword: Keyword,

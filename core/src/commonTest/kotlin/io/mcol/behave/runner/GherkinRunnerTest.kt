@@ -315,7 +315,7 @@ class GherkinRunnerTest {
 
     @Test
     fun `data table rows are passed to step definition via params`() = runTest {
-        val capturedRows = mutableListOf<Map<String, String>>()
+        val capturedRows = mutableListOf<Map<String, String?>>()
         val defs = steps(::Ctx) {
             Given("the following words") { params ->
                 capturedRows.addAll(params.dataTable?.rows ?: emptyList())
@@ -329,14 +329,14 @@ class GherkinRunnerTest {
         val feature = simpleFeature(Step(Keyword.GIVEN, "the following words", table))
         assertFalse(GherkinRunner(defs).run(feature).hasFailures)
         assertEquals(3, capturedRows.size)
-        assertEquals(mapOf("word" to "Hund",  "translation" to "dog"),   capturedRows[0])
-        assertEquals(mapOf("word" to "Katze", "translation" to "cat"),   capturedRows[1])
-        assertEquals(mapOf("word" to "Haus",  "translation" to "house"), capturedRows[2])
+        assertEquals(mapOf<String, String?>("word" to "Hund",  "translation" to "dog"),   capturedRows[0])
+        assertEquals(mapOf<String, String?>("word" to "Katze", "translation" to "cat"),   capturedRows[1])
+        assertEquals(mapOf<String, String?>("word" to "Haus",  "translation" to "house"), capturedRows[2])
     }
 
     @Test
     fun `data table rows parsed from feature file and passed to step definition`() = runTest {
-        val capturedRows = mutableListOf<Map<String, String>>()
+        val capturedRows = mutableListOf<Map<String, String?>>()
         val defs = steps(::Ctx) {
             Given("the following words") { params ->
                 capturedRows.addAll(params.dataTable?.rows ?: emptyList())
@@ -345,9 +345,23 @@ class GherkinRunnerTest {
         }
         gherkin("features/data_table.feature", defs)
         assertEquals(3, capturedRows.size)
-        assertEquals(mapOf("word" to "Hund",  "translation" to "dog"),   capturedRows[0])
-        assertEquals(mapOf("word" to "Katze", "translation" to "cat"),   capturedRows[1])
-        assertEquals(mapOf("word" to "Haus",  "translation" to "house"), capturedRows[2])
+        assertEquals(mapOf<String, String?>("word" to "Hund",  "translation" to "dog"),   capturedRows[0])
+        assertEquals(mapOf<String, String?>("word" to "Katze", "translation" to "cat"),   capturedRows[1])
+        assertEquals(mapOf<String, String?>("word" to "Haus",  "translation" to "house"), capturedRows[2])
+    }
+
+    @Test
+    fun `cell with text null is parsed as null value`() = runTest {
+        val capturedRows = mutableListOf<Map<String, String?>>()
+        val defs = steps(::Ctx) {
+            Given("the following words") { params ->
+                capturedRows.addAll(params.dataTable?.rows ?: emptyList())
+            }
+            Then("word count is {int}") { (n: Int) -> assertEquals(n, capturedRows.size) }
+        }
+        gherkin("features/data_table_null.feature", defs)
+        assertEquals(null,  capturedRows[0]["translation"]) // "null" text → null
+        assertEquals("cat", capturedRows[1]["translation"]) // normal value
     }
 
     @Test
