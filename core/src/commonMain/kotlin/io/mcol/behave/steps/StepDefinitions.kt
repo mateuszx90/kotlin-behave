@@ -1,5 +1,8 @@
 package io.mcol.behave.steps
 
+import io.mcol.behave.model.DataTable
+import io.mcol.behave.model.Keyword
+import io.mcol.behave.model.Step
 import io.mcol.behave.types.Params
 import io.mcol.behave.types.TypeRegistry
 
@@ -17,11 +20,14 @@ class StepDefinitions<C>(
     val stepBuilder: StepBuilder<C>,
     internal val entries: List<StepEntry<C>>,
 ) {
-    fun find(stepText: String): (suspend () -> Unit)? {
+    fun find(stepText: String, dataTable: DataTable? = null): (suspend () -> Unit)? =
+        find(Step(Keyword.GIVEN, stepText, dataTable))
+
+    fun find(step: Step): (suspend () -> Unit)? {
         for (entry in entries) {
             val compiled = TypeRegistry.compile(entry.expression)
-            val match = compiled.regex.matchEntire(stepText) ?: continue
-            val params = Params(compiled.convert(match))
+            val match = compiled.regex.matchEntire(step.text) ?: continue
+            val params = Params(compiled.convert(match), step.dataTable)
             return { entry.fn(params) }
         }
         return null

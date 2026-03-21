@@ -84,7 +84,7 @@ fun <C> FreeSpec.gherkin(
 fun <C> FreeSpec.gherkin(
     path: String,
     steps: StepDefinitions<C>,
-    scenarioAsTest: Boolean = false,
+    scenarioAsTest: Boolean = true,
 ) {
     val feature = loadFeature(path)
 
@@ -97,7 +97,7 @@ fun <C> FreeSpec.gherkin(
                     steps.stepBuilder.beforeHooks.forEach { it() }
                     try {
                         for (step in scenarioSteps) {
-                            val stepFn = steps.find(step.text)
+                            val stepFn = steps.find(step)
                             stepFn?.invoke() ?: throw MissingStepException(step.text)
                         }
                     } finally {
@@ -125,7 +125,7 @@ fun <C> FreeSpec.gherkin(
                 "Scenario: ${scenario.name}" - {
                     var scenarioFailed = false
                     for (step in scenarioSteps) {
-                        val stepFn = steps.find(step.text)
+                        val stepFn = steps.find(step)
                         step.text {
                             if (!scenarioFailed) {
                                 try {

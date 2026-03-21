@@ -69,7 +69,7 @@ class GherkinRunner<C>(private val stepDefinitions: StepDefinitions<C>) {
             val allSteps = (feature.background?.steps ?: emptyList()) + scenario.steps
             for (step in allSteps) {
                 if (stepError != null || isPending) break
-                val fn = stepDefinitions.find(step.text) ?: run {
+                val fn = stepDefinitions.find(step) ?: run {
                     stepError = MissingStepException(step.text)
                     failedStep = step.text
                     null
