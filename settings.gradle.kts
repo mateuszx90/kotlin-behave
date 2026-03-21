@@ -1,5 +1,5 @@
 rootProject.name = "kotlin-behave"
-include(":library")
+include(":core")
 
 dependencyResolutionManagement {
     repositories {
