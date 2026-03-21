@@ -1,0 +1,35 @@
+package io.mcol.behave.annotations
+
+import kotlin.reflect.KClass
+
+/**
+ * Marks a class as a Gherkin step definitions implementation for the given feature file.
+ * KSP will generate an interface [ClassName]Spec with one method per unique step.
+ *
+ * @param path Path to the .feature file, relative to [behave.featureDir] KSP option
+ *             (default: "src/commonTest/resources").
+ */
+@Target(AnnotationTarget.CLASS)
+@Retention(AnnotationRetention.SOURCE)
+annotation class BehaveFeature(val path: String)
+
+/**
+ * Configures type mapping for placeholders or DataTable columns in steps.
+ *
+ * Three modes:
+ * - **Placeholder**: `placeholder` set, `fields` empty — maps `{placeholder}` to [type]
+ * - **Field auto-detect**: `placeholder` empty, `fields` empty — absorbs all step tokens
+ *   matching [type]'s primary constructor parameter names
+ * - **Field explicit**: `placeholder` empty, `fields` non-empty — same as auto-detect but
+ *   with explicit field names provided
+ *
+ * Repeatable — apply multiple times for multiple type mappings.
+ */
+@Target(AnnotationTarget.CLASS)
+@Repeatable
+@Retention(AnnotationRetention.SOURCE)
+annotation class BehaveType(
+    val placeholder: String = "",
+    val type: KClass<*>,
+    val fields: Array<String> = [],
+)

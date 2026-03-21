@@ -16,10 +16,12 @@ data class Scenario(
     val name: String,
     val steps: List<Step>,
     val rows: List<Map<String, String>> = emptyList(),
+    val tags: Set<String> = emptySet(),
 )
 
 data class Feature(
     val name: String,
     val background: Background? = null,
     val scenarios: List<Scenario>,
+    val tags: Set<String> = emptySet(),
 )

@@ -10,20 +10,27 @@ object GherkinParser {
             .filterNot { it.startsWith("#") || it.isBlank() }
 
         var featureName = ""
+        var featureTags = emptySet<String>()
         var background: Background? = null
         val scenarios = mutableListOf<Scenario>()
 
         var currentScenarioName: String? = null
+        var currentScenarioTags = emptySet<String>()
         var isOutline = false
         var isBackground = false
         var currentSteps = mutableListOf<Step>()
         var exampleHeaders = listOf<String>()
+        var exampleTags = emptySet<String>()
         var inExamples = false
+        var pendingTags = emptySet<String>()
 
         // DataTable tracking: accumulate table rows for the most recently seen step
         var pendingStep: Step? = null
         var tableHeaders: List<String> = emptyList()
         var tableRows: MutableList<Map<String, String?>> = mutableListOf()
+
+        fun parseTags(line: String): Set<String> =
+            line.trim().split("\\s+".toRegex()).filter { it.startsWith("@") }.toSet()
 
         fun flushPendingStep() {
             pendingStep?.let { step ->
@@ -40,13 +47,16 @@ object GherkinParser {
             if (isBackground) {
                 background = Background(currentSteps.toList())
             } else if (currentScenarioName != null && !isOutline) {
-                scenarios.add(Scenario(currentScenarioName!!, currentSteps.toList()))
+                val finalTags = featureTags + currentScenarioTags
+                scenarios.add(Scenario(currentScenarioName!!, currentSteps.toList(), tags = finalTags))
             }
             currentSteps = mutableListOf()
             currentScenarioName = null
+            currentScenarioTags = emptySet()
             isOutline = false
             isBackground = false
             exampleHeaders = listOf()
+            exampleTags = emptySet()
             inExamples = false
         }
 
@@ -56,18 +66,36 @@ object GherkinParser {
 
         for (line in lines) {
             when {
-                line.startsWith("Feature:") -> featureName = line.removePrefix("Feature:").trim()
-                line.startsWith("Background:") -> { flushScenario(); isBackground = true }
+                line.startsWith("@") -> pendingTags = parseTags(line)
+                line.startsWith("Feature:") -> {
+                    featureTags = pendingTags
+                    pendingTags = emptySet()
+                    featureName = line.removePrefix("Feature:").trim()
+                }
+                line.startsWith("Background:") -> {
+                    flushScenario()
+                    isBackground = true
+                    pendingTags = emptySet()
+                }
                 line.startsWith("Scenario Outline:") -> {
                     flushScenario()
+                    currentScenarioTags = pendingTags
+                    pendingTags = emptySet()
                     currentScenarioName = line.removePrefix("Scenario Outline:").trim()
                     isOutline = true
                 }
                 line.startsWith("Scenario:") -> {
                     flushScenario()
+                    currentScenarioTags = pendingTags
+                    pendingTags = emptySet()
                     currentScenarioName = line.removePrefix("Scenario:").trim()
                 }
-                line.startsWith("Examples:") -> { flushPendingStep(); inExamples = true }
+                line.startsWith("Examples:") -> {
+                    flushPendingStep()
+                    exampleTags = pendingTags
+                    pendingTags = emptySet()
+                    inExamples = true
+                }
                 inExamples && line.startsWith("|") -> {
                     val cells = parseTableRow(line)
                     if (exampleHeaders.isEmpty()) {
@@ -78,13 +106,14 @@ object GherkinParser {
                             step.copy(text = row.entries.fold(step.text) { t, (k, v) -> t.replace("<$k>", v) })
                         }
                         val rowLabel = row.entries.joinToString(", ") { (k, v) -> "$k=$v" }
-                        scenarios.add(Scenario("$currentScenarioName [$rowLabel]", resolvedSteps, listOf(row)))
+                        val finalTags = featureTags + currentScenarioTags + exampleTags
+                        scenarios.add(Scenario("$currentScenarioName [$rowLabel]", resolvedSteps, listOf(row), finalTags))
                     }
                 }
                 else -> {
                     val kwText = stepKeyword(line)
                     if (kwText != null) {
-                        flushPendingStep()  // commit previous step (with any accumulated table rows)
+                        flushPendingStep()
                         pendingStep = Step(kwText.first, kwText.second)
                     } else if (line.startsWith("|") && pendingStep != null && !inExamples) {
                         val cells = parseTableRow(line)
@@ -96,7 +125,7 @@ object GherkinParser {
         }
         flushScenario()
 
-        return Feature(featureName, background, scenarios)
+        return Feature(featureName, background, scenarios, featureTags)
     }
 
     internal fun stepKeyword(line: String): Pair<Keyword, String>? {
