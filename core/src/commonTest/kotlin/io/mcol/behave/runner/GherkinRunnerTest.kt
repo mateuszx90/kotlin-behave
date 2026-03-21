@@ -311,6 +311,58 @@ class GherkinRunnerTest {
         assertFalse(GherkinRunner(defs).run(feature).hasFailures)
     }
 
+    // region data table -------------------------------------------------------
+
+    @Test
+    fun `data table rows are passed to step definition via params`() = runTest {
+        val capturedRows = mutableListOf<Map<String, String>>()
+        val defs = steps(::Ctx) {
+            Given("the following words") { params ->
+                capturedRows.addAll(params.dataTable?.rows ?: emptyList())
+            }
+        }
+        val table = DataTable(listOf(
+            mapOf("word" to "Hund",  "translation" to "dog"),
+            mapOf("word" to "Katze", "translation" to "cat"),
+            mapOf("word" to "Haus",  "translation" to "house"),
+        ))
+        val feature = simpleFeature(Step(Keyword.GIVEN, "the following words", table))
+        assertFalse(GherkinRunner(defs).run(feature).hasFailures)
+        assertEquals(3, capturedRows.size)
+        assertEquals(mapOf("word" to "Hund",  "translation" to "dog"),   capturedRows[0])
+        assertEquals(mapOf("word" to "Katze", "translation" to "cat"),   capturedRows[1])
+        assertEquals(mapOf("word" to "Haus",  "translation" to "house"), capturedRows[2])
+    }
+
+    @Test
+    fun `data table rows parsed from feature file and passed to step definition`() = runTest {
+        val capturedRows = mutableListOf<Map<String, String>>()
+        val defs = steps(::Ctx) {
+            Given("the following words") { params ->
+                capturedRows.addAll(params.dataTable?.rows ?: emptyList())
+            }
+            Then("word count is {int}") { (n: Int) -> assertEquals(n, capturedRows.size) }
+        }
+        gherkin("features/data_table.feature", defs)
+        assertEquals(3, capturedRows.size)
+        assertEquals(mapOf("word" to "Hund",  "translation" to "dog"),   capturedRows[0])
+        assertEquals(mapOf("word" to "Katze", "translation" to "cat"),   capturedRows[1])
+        assertEquals(mapOf("word" to "Haus",  "translation" to "house"), capturedRows[2])
+    }
+
+    @Test
+    fun `step without table has null dataTable in params`() = runTest {
+        var captured: io.mcol.behave.model.DataTable? = DataTable(emptyList())
+        val defs = steps(::Ctx) {
+            Given("plain step") { params -> captured = params.dataTable }
+        }
+        val feature = simpleFeature(Step(Keyword.GIVEN, "plain step"))
+        GherkinRunner(defs).run(feature)
+        assertEquals(null, captured)
+    }
+
+    // endregion
+
     @Test
     fun `end-to-end gherkin runs feature file and passes`() = runTest {
         class WordCtx { var count: Int = 0 }
