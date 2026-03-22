@@ -14,7 +14,7 @@ internal object TypeValidator {
         "boolean" to Regex("true|false"),
         "long" to Regex("-?\\d+"),
         "float" to Regex("-?\\d+\\.?\\d*"),
-        "string" to Regex("\"[^\"]*\""),
+        "string" to Regex(".*"),  // extracted value has quotes already stripped by capture group
         "word" to Regex("\\S+"),
     )
 
