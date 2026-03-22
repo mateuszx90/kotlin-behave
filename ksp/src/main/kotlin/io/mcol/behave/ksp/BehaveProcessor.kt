@@ -107,31 +107,30 @@ class BehaveProcessor(
             )
         }
 
-        // Generate Row classes for auto-generated DataTable steps.
-        // Exclude steps where the list type is a user-defined @BehaveType (those contain '.' in the type name).
+        // Generate Row class descriptors for DataTable steps.
+        // Auto-generated row classes (simple name ending in "Row") are emitted as data classes.
+        // User-defined types (FQN containing ".") are included for field-mapping code but not re-emitted.
         val rowClasses = generatedSteps
             .filter { step ->
                 step.params.any { param ->
                     val innerType = param.typeName.removePrefix("List<").removeSuffix(">")
-                    param.typeName.startsWith("List<") && innerType.endsWith("Row") && !innerType.contains(".")
+                    param.typeName.startsWith("List<") && innerType.endsWith("Row")
                 }
             }
             .map { step ->
                 val listParam = step.params.first { it.typeName.startsWith("List<") }
                 val rowClassName = listParam.typeName.removePrefix("List<").removeSuffix(">")
-                // Find the step's DataTable columns and map to the registered types
+                val isUserDefined = rowClassName.contains(".")
+                // Find the step's DataTable columns; each cell is a String (DataTable rows are Map<String,String>)
                 val originalStep = parsed.steps.first { it.keyword == step.originalKeyword && it.text == step.originalText }
                 val rowParams = originalStep.tableColumns.map { col ->
-                    val typeMapping = typeMappings.firstOrNull { tm ->
-                        (tm.placeholder == col) || (tm.fields.isNotEmpty() && col in tm.fields) ||
-                        (tm.placeholder.isEmpty() && tm.fields.isEmpty() && col in tm.fields)
-                    }
-                    io.mcol.behave.ksp.CodeGenerator.StepParam(
-                        name = col,
-                        typeName = typeMapping?.typeName ?: "String",
-                    )
+                    io.mcol.behave.ksp.CodeGenerator.StepParam(name = col, typeName = "String")
                 }
-                io.mcol.behave.ksp.CodeGenerator.GeneratedRowClass(rowClassName, rowParams)
+                io.mcol.behave.ksp.CodeGenerator.GeneratedRowClass(
+                    name = rowClassName,
+                    params = rowParams,
+                    shouldEmit = !isUserDefined,
+                )
             }
 
         val interfaceName = "${className}Spec"

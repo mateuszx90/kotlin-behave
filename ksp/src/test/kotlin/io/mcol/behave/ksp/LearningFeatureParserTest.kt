@@ -22,9 +22,8 @@ class LearningFeatureParserTest {
     // region Deduplication
 
     @Test
-    fun `tap steps with different literals deduplicate to one method`() {
-        // "When I tap "Cancel"" and "When I tap "Discard"" and "And I tap "Next""
-        // and "And I tap "Restart with same words"" all normalise the same per keyword+pattern
+    fun `tap steps with different quoted literals deduplicate to one method`() {
+        // When I tap "Cancel" and When I tap "..." all normalise the same per keyword+pattern
         val tapWhen = parsed.steps.filter { it.keyword == "When" && it.text.startsWith("I tap ") }
         val tapAnd = parsed.steps.filter { it.keyword == "And" && it.text.startsWith("I tap ") }
         assertEquals(1, tapWhen.size, "When I tap \"...\" should deduplicate to 1 step")
@@ -67,18 +66,19 @@ class LearningFeatureParserTest {
     // region Step expression generation
 
     @Test
-    fun `unquoted variable becomes word placeholder in step expression for question word step`() {
-        // Feature file uses <pies> (unquoted variable), not "pies" (quoted literal)
+    fun `quoted literal becomes string placeholder in step expression for question word step`() {
+        // Feature file uses "pies" (quoted literal)
         val step = parsed.steps.first { it.text.startsWith("I see the question word ") }
         val expr = CodeGenerator.replaceOutlineVariables(CodeGenerator.replaceQuotedLiterals(step.text))
-        assertEquals("I see the question word {word}", expr)
+        assertEquals("I see the question word {string}", expr)
     }
 
     @Test
-    fun `outline variable becomes word placeholder in step expression for type step`() {
+    fun `quoted outline variable becomes string placeholder in step expression for type step`() {
+        // Feature file uses "<answer>" (quoted outline variable reference)
         val step = parsed.steps.first { it.text.startsWith("I type ") && it.text.contains("answer field") }
         val expr = CodeGenerator.replaceOutlineVariables(CodeGenerator.replaceQuotedLiterals(step.text))
-        assertEquals("I type {word} in the answer field", expr)
+        assertEquals("I type {string} in the answer field", expr)
     }
 
     @Test
@@ -89,11 +89,11 @@ class LearningFeatureParserTest {
     }
 
     @Test
-    fun `tap step expression uses word placeholder`() {
-        // Feature file uses <Cancel> (unquoted variable), not "Cancel" (quoted literal)
+    fun `tap step expression uses string placeholder`() {
+        // Feature file uses "Cancel" (quoted literal) for tap steps
         val step = parsed.steps.first { it.keyword == "When" && it.text.startsWith("I tap ") }
         val expr = CodeGenerator.replaceOutlineVariables(CodeGenerator.replaceQuotedLiterals(step.text))
-        assertEquals("I tap {word}", expr)
+        assertEquals("I tap {string}", expr)
     }
 
     // endregion
@@ -101,12 +101,12 @@ class LearningFeatureParserTest {
     // region Inline param resolution
 
     @Test
-    fun `unquoted variable step has String param named after variable`() {
-        // Feature file uses <pies> — param name is the variable name "pies"
+    fun `quoted literal step has String param named string`() {
+        // Feature file uses "pies" (quoted literal) — param name defaults to "string"
         val step = parsed.steps.first { it.text.startsWith("I see the question word ") }
         val params = resolveInlineParamsForTest(step.text)
         assertEquals(1, params.size)
-        assertEquals("pies", params[0].name)
+        assertEquals("string", params[0].name)
         assertEquals("String", params[0].typeName)
     }
 
@@ -129,10 +129,12 @@ class LearningFeatureParserTest {
     }
 
     @Test
-    fun `tap step has one String param`() {
+    fun `tap step has one String param named string`() {
+        // "Cancel" is a quoted literal → param name is "string"
         val step = parsed.steps.first { it.keyword == "When" && it.text.startsWith("I tap ") }
         val params = resolveInlineParamsForTest(step.text)
         assertEquals(1, params.size)
+        assertEquals("string", params[0].name)
         assertEquals("String", params[0].typeName)
     }
 

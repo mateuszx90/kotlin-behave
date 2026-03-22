@@ -27,6 +27,7 @@ internal object CodeGenerator {
     data class GeneratedRowClass(
         val name: String,
         val params: List<StepParam>,
+        val shouldEmit: Boolean = true,  // false for user-defined types that already exist
     )
 
     data class GeneratedInterface(
@@ -42,8 +43,8 @@ internal object CodeGenerator {
         appendLine("package ${iface.packageName}")
         appendLine()
 
-        // Row classes first
-        for (row in iface.rowClasses) {
+        // Row classes first (only emit auto-generated ones, not user-defined)
+        for (row in iface.rowClasses.filter { it.shouldEmit }) {
             append("data class ${row.name}(")
             append(row.params.joinToString(", ") { "val ${it.name}: ${it.typeName}" })
             appendLine(")")
@@ -102,7 +103,15 @@ internal object CodeGenerator {
                 appendLine("                    val rows = params.dataTable!!.rows.map { row ->")
                 appendLine("                        ${rowClass.name}(")
                 val assignments = rowClass.params.joinToString(",\n") { p ->
-                    "                            ${p.name} = TODO(\"map row[\\\"${p.name}\\\"] to ${p.typeName}\")"
+                    val accessor = when (p.typeName) {
+                        "String" -> "row[\"${p.name}\"] ?: \"\""
+                        "Int" -> "row[\"${p.name}\"]?.toIntOrNull() ?: 0"
+                        "Long" -> "row[\"${p.name}\"]?.toLongOrNull() ?: 0L"
+                        "Double" -> "row[\"${p.name}\"]?.toDoubleOrNull() ?: 0.0"
+                        "Boolean" -> "row[\"${p.name}\"]?.toBooleanStrictOrNull() ?: false"
+                        else -> "TODO(\"map row[\\\"${p.name}\\\"] to ${p.typeName}\")"
+                    }
+                    "                            ${p.name} = $accessor"
                 }
                 appendLine(assignments)
                 appendLine("                        )")
@@ -116,13 +125,13 @@ internal object CodeGenerator {
                 }
                 appendLine(")")
             } else {
-                // List<T> with a registered table type — rows are mapped by the TypeRegistry
+                // List<T> with no field info — fall back to raw DataTable rows
                 append("                    ctx.${step.methodName}(")
                 if (inlineParams.isNotEmpty()) {
                     append(inlineParams.mapIndexed { i, p -> "params.component${i + 1}() as ${p.typeName}" }.joinToString(", "))
                     append(", ")
                 }
-                appendLine("params.component${inlineParams.size + 1}() as ${listParam.typeName})")
+                appendLine("params.dataTable!!.rows as ${listParam.typeName})")
             }
             appendLine("                }")
         } else {
