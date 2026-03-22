@@ -175,11 +175,12 @@ internal object CodeGenerator {
 
     /** Built-in placeholder → Kotlin type mapping. */
     val builtinTypes = mapOf(
-        "string" to "String",
-        "int"    to "Int",
-        "long"   to "Long",
-        "float"  to "Float",
-        "double" to "Double",
-        "word"   to "String",
+        "string"  to "String",
+        "int"     to "Int",
+        "long"    to "Long",
+        "float"   to "Float",
+        "double"  to "Double",
+        "word"    to "String",
+        "boolean" to "Boolean",
     )
 }

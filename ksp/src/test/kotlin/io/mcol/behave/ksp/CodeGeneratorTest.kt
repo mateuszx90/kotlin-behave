@@ -113,4 +113,9 @@ class CodeGeneratorTest {
         assertEquals("Double", CodeGenerator.builtinTypes["double"])
         assertEquals("String", CodeGenerator.builtinTypes["word"])
     }
+
+    @Test
+    fun `builtinTypes includes boolean mapping`() {
+        assertEquals("Boolean", CodeGenerator.builtinTypes["boolean"])
+    }
 }

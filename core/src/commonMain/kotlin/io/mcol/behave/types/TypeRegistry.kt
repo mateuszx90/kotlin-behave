@@ -28,7 +28,8 @@ class TypeRegistry {
         PlaceholderDef("{float}",  "{float}",  """-?\d+\.?\d*""", { it.toFloat() }),
         PlaceholderDef("{double}", "{double}", """-?\d+\.?\d*""", { it.toDouble() }),
         PlaceholderDef("{string}", "{string}", """"[^"]*"""",     { it.removeSurrounding("\"") }),
-        PlaceholderDef("{word}",   "{word}",   """\S+""",         { it }),
+        PlaceholderDef("{word}",    "{word}",    """\S+""",         { it }),
+        PlaceholderDef("{boolean}", "{boolean}", """true|false""",  { it.toBooleanStrict() }),
     )
 
     private val customScalar = mutableListOf<PlaceholderDef>()
