@@ -95,7 +95,9 @@ class BehaveProcessor(
             val params = resolveParams(step, typeMappings, classDecl)
             val rawExpr = io.mcol.behave.ksp.CodeGenerator.escapeStepExpression(
                 io.mcol.behave.ksp.CodeGenerator.replaceOutlineVariables(
-                    io.mcol.behave.ksp.CodeGenerator.replaceQuotedLiterals(step.text)
+                    io.mcol.behave.ksp.CodeGenerator.replaceNumberLiterals(
+                        io.mcol.behave.ksp.CodeGenerator.replaceQuotedLiterals(step.text)
+                    )
                 )
             )
             io.mcol.behave.ksp.CodeGenerator.GeneratedStep(

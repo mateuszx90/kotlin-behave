@@ -16,6 +16,8 @@ internal object MethodNameGenerator {
     private val QUOTED_LITERAL_REGEX = Regex("\"[^\"]*\"")
     private val PLACEHOLDER_REGEX = Regex("\\{[^}]+}")
     private val VARIABLE_REGEX = Regex("<[^>]+>")
+    private val DOUBLE_LITERAL_REGEX = Regex("""(?<!\S)-?\d+\.\d+(?!\S)""")
+    private val INT_LITERAL_REGEX = Regex("""(?<!\S)-?\d+(?!\S)""")
     private val NON_ALNUM = Regex("[^a-zA-Z0-9]+")
 
     /**
@@ -28,6 +30,8 @@ internal object MethodNameGenerator {
         clean = QUOTED_LITERAL_REGEX.replace(clean, " ")
         clean = PLACEHOLDER_REGEX.replace(clean, " ")
         clean = VARIABLE_REGEX.replace(clean, " ")
+        clean = DOUBLE_LITERAL_REGEX.replace(clean, " ")
+        clean = INT_LITERAL_REGEX.replace(clean, " ")
         // Strip trailing colon
         clean = clean.trimEnd(':')
         // Split into words

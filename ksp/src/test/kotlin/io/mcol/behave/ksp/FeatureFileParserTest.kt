@@ -189,6 +189,33 @@ class FeatureFileParserTest {
     }
 
     @Test
+    fun `normalise replaces standalone numbers with placeholder for deduplication`() {
+        val n1 = FeatureFileParser.normalise("When", """I create a recipe with 4 portions named "Pasta"""")
+        val n2 = FeatureFileParser.normalise("When", """I create a recipe with 2 portions named "Salad"""")
+        assertEquals(n1, n2)
+    }
+
+    @Test
+    fun `steps with different number literals are deduplicated`() {
+        val feature = """
+            Feature: F
+              Scenario: first
+                When I create a recipe with 4 portions named "Pasta"
+              Scenario: second
+                When I create a recipe with 2 portions named "Salad"
+        """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        val createSteps = parsed.steps.filter { it.text.contains("create a recipe") }
+        assertEquals(1, createSteps.size, "Steps with different numbers should deduplicate")
+    }
+
+    @Test
+    fun `normalise does not replace numbers embedded in words`() {
+        val normalised = FeatureFileParser.normalise("When", "I visit step2go website")
+        assertTrue(normalised.contains("step2go"))
+    }
+
+    @Test
     fun `type validation patterns match correctly`() {
         val patterns = TypeValidator.typeValidationPatterns
         assertTrue(patterns["int"]!!.matches("4"))

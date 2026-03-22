@@ -56,6 +56,22 @@ class MethodNameGeneratorTest {
     }
 
     @Test
+    fun `strips standalone number literals from method name`() {
+        assertEquals(
+            "whenICreateARecipeWithPortionsNamed",
+            MethodNameGenerator.generate("When", """I create a recipe with 4 portions named "Pasta""""),
+        )
+    }
+
+    @Test
+    fun `does not strip numbers embedded in words from method name`() {
+        assertEquals(
+            "whenIVisitStep2goWebsite",
+            MethodNameGenerator.generate("When", "I visit step2go website"),
+        )
+    }
+
+    @Test
     fun `collision resolution adds numeric suffixes`() {
         val steps = listOf(
             "Given" to "I have {int} items",

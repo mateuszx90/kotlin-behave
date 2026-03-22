@@ -95,6 +95,9 @@ internal object FeatureFileParser {
         s = s.replace(Regex("\"[^\"]*\""), "{}")   // "literal" and "<variable>" treated as placeholder
         s = s.replace(Regex("\\{[^}]+}"), "{}")
         s = s.replace(Regex("<[^>]+>"), "{}")
+        // Replace standalone numbers (doubles first, then integers)
+        s = s.replace(Regex("""(?<!\S)-?\d+\.\d+(?!\S)"""), "{}")
+        s = s.replace(Regex("""(?<!\S)-?\d+(?!\S)"""), "{}")
         return s.trim()
     }
 
