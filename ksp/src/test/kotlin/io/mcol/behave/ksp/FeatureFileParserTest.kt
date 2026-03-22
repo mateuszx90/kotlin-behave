@@ -163,4 +163,40 @@ class FeatureFileParserTest {
         val parsed = FeatureFileParser.parse(feature)
         assertTrue(parsed.allStepInstances.any { it.keyword == "Given" })
     }
+
+    @Test
+    fun `extractConcreteValues extracts quoted strings and numbers from raw text`() {
+        val template = """I create a recipe with 4 portions named "Pasta""""
+        val raw =      """I create a recipe with 2 portions named "Salad""""
+        val values = TypeValidator.extractConcreteValues(raw, template)
+        assertEquals(listOf("2", "Salad"), values)
+    }
+
+    @Test
+    fun `extractConcreteValues handles doubles`() {
+        val template = "the value is 5.5"
+        val raw = "the value is 3.14"
+        val values = TypeValidator.extractConcreteValues(raw, template)
+        assertEquals(listOf("3.14"), values)
+    }
+
+    @Test
+    fun `extractConcreteValues handles outline variables`() {
+        val template = "I am logged in as <role>"
+        val raw = "I am logged in as admin"
+        val values = TypeValidator.extractConcreteValues(raw, template)
+        assertEquals(listOf("admin"), values)
+    }
+
+    @Test
+    fun `type validation patterns match correctly`() {
+        val patterns = TypeValidator.typeValidationPatterns
+        assertTrue(patterns["int"]!!.matches("4"))
+        assertTrue(patterns["int"]!!.matches("-3"))
+        assertFalse(patterns["int"]!!.matches("5.5"))
+        assertTrue(patterns["double"]!!.matches("5.5"))
+        assertFalse(patterns["double"]!!.matches("4"))
+        assertTrue(patterns["boolean"]!!.matches("true"))
+        assertFalse(patterns["boolean"]!!.matches("True"))
+    }
 }

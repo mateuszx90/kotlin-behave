@@ -107,6 +107,9 @@ class BehaveProcessor(
             )
         }
 
+        // Validate concrete values against declared placeholder types
+        validateTypes(generatedSteps, parsed.allStepInstances, classDecl)
+
         // Generate Row class descriptors for DataTable steps.
         // Auto-generated row classes (simple name ending in "Row") are emitted as data classes.
         // User-defined types (FQN containing ".") are included for field-mapping code but not re-emitted.
@@ -258,6 +261,40 @@ class BehaveProcessor(
         }
 
         return params
+    }
+
+    private fun validateTypes(
+        generatedSteps: List<io.mcol.behave.ksp.CodeGenerator.GeneratedStep>,
+        allRawSteps: List<FeatureFileParser.RawStep>,
+        classDecl: KSClassDeclaration,
+    ) {
+        if (allRawSteps.isEmpty()) return
+
+        for (genStep in generatedSteps) {
+            val placeholderTypes = TypeValidator.extractPlaceholderTypes(genStep.stepExpression)
+            if (placeholderTypes.isEmpty()) continue
+
+            val normalisedGen = FeatureFileParser.normalise(genStep.originalKeyword, genStep.originalText)
+            val matchingRaw = allRawSteps.filter { raw ->
+                FeatureFileParser.normalise(raw.keyword, raw.text) == normalisedGen
+            }
+
+            for (raw in matchingRaw) {
+                val concreteValues = TypeValidator.extractConcreteValues(raw.text, genStep.originalText)
+                for ((i, value) in concreteValues.withIndex()) {
+                    if (i >= placeholderTypes.size) break
+                    val expectedType = placeholderTypes[i]
+                    val pattern = TypeValidator.typeValidationPatterns[expectedType] ?: continue
+                    if (!pattern.matches(value)) {
+                        logger.error(
+                            "Type mismatch in scenario '${raw.scenarioName}': " +
+                                "value '$value' does not match {$expectedType} in step '${raw.keyword} ${raw.text}'",
+                            classDecl,
+                        )
+                    }
+                }
+            }
+        }
     }
 
     private fun resolveDataTableParams(
