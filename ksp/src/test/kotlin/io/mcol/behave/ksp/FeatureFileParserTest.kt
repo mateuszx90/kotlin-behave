@@ -250,6 +250,29 @@ class FeatureFileParserTest {
     }
 
     @Test
+    fun `quoted literal and outline variable in same position unify to string`() {
+        val feature = """
+            Feature: F
+              Scenario: concrete
+                When I search for "hello"
+              Scenario Outline: outline
+                When I search for <term>
+                Examples:
+                  | term  |
+                  | world |
+        """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        // Both should deduplicate to 1 step
+        assertEquals(1, parsed.steps.size)
+        // The step's text should contain the quoted form (first occurrence)
+        assertTrue(parsed.steps[0].text.contains("\"hello\"") || parsed.steps[0].text.contains("<term>"))
+        // allStepTemplates should contain both pre-dedup variants for unification
+        assertEquals(2, parsed.allStepTemplates.size)
+        assertTrue(parsed.allStepTemplates.any { it.text.contains("\"hello\"") })
+        assertTrue(parsed.allStepTemplates.any { it.text.contains("<term>") })
+    }
+
+    @Test
     fun `type validation patterns match correctly`() {
         val patterns = TypeValidator.typeValidationPatterns
         assertTrue(patterns["int"]!!.matches("4"))

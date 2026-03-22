@@ -26,6 +26,7 @@ internal object FeatureFileParser {
     data class ParsedFeature(
         val steps: List<ParsedStep>,             // all unique steps (deduplicated)
         val allStepInstances: List<RawStep>,      // all concrete values preserved (for type validation)
+        val allStepTemplates: List<ParsedStep> = emptyList(), // all steps before deduplication (for type unification)
     )
 
     private val keywords = listOf("Given", "When", "Then", "And", "But")
@@ -136,7 +137,7 @@ internal object FeatureFileParser {
             seen.add(normalised)
         }
 
-        return ParsedFeature(unique, allRawSteps)
+        return ParsedFeature(unique, allRawSteps, allSteps)
     }
 
     /** Normalise for deduplication: lowercase, replace {placeholder}, <variable>, and "literal" with {}, trim. */

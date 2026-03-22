@@ -22,6 +22,7 @@ internal object CodeGenerator {
         val stepExpression: String,  // regex-escaped pattern for the companion
         val originalKeyword: String,
         val originalText: String,
+        val castParams: Map<Int, String> = emptyMap(), // param index → original narrow type (e.g. "Int")
     )
 
     data class GeneratedRowClass(
@@ -71,11 +72,12 @@ internal object CodeGenerator {
 
         for (step in iface.steps) {
             val keyword = step.originalKeyword
-            val expr = step.stepExpression.replace("\"", "\\\"")
+            val widenedExpr = widenStepExpression(step.stepExpression, step.castParams, step.params)
+            val expr = widenedExpr.replace("\"", "\\\"")
             if (step.params.isEmpty()) {
                 appendLine("                $keyword(\"$expr\") { ctx.${step.methodName}() }")
             } else {
-                renderStepCall(step, iface.rowClasses)
+                renderStepCall(step, iface.rowClasses, expr)
             }
         }
 
@@ -87,9 +89,9 @@ internal object CodeGenerator {
     private fun StringBuilder.renderStepCall(
         step: GeneratedStep,
         rowClasses: List<GeneratedRowClass>,
+        expr: String,
     ) {
         val keyword = step.originalKeyword
-        val expr = step.stepExpression.replace("\"", "\\\"")
 
         // Check if this step has a DataTable (List<...> param)
         val listParam = step.params.firstOrNull { it.typeName.startsWith("List<") }
@@ -135,13 +137,60 @@ internal object CodeGenerator {
             }
             appendLine("                }")
         } else {
-            // Inline params only
-            val destructure = step.params.mapIndexed { i, p -> "p${i + 1}: ${p.typeName}" }.joinToString(", ")
-            val args = step.params.indices.joinToString(", ") { "p${it + 1}" }
+            // Inline params only — widen types for @BehaveCast and add conversion
+            val destructure = step.params.mapIndexed { i, p ->
+                val widening = if (i in step.castParams) wideningMap[step.castParams[i]] else null
+                val destructType = widening?.second ?: p.typeName
+                "p${i + 1}: $destructType"
+            }.joinToString(", ")
+            val args = step.params.mapIndexed { i, _ ->
+                val narrowType = step.castParams[i]
+                val widening = if (narrowType != null) wideningMap[narrowType] else null
+                if (widening != null) {
+                    widening.third.replace("\$p", "p${i + 1}")
+                } else {
+                    "p${i + 1}"
+                }
+            }.joinToString(", ")
             appendLine("                $keyword(\"$expr\") { ($destructure) ->")
             appendLine("                    ctx.${step.methodName}($args)")
             appendLine("                }")
         }
+    }
+
+    /**
+     * Widen placeholders in the step expression for parameters annotated with @BehaveCast.
+     * E.g., if param 0 has castParams[0] = "Int", replace the first {int} with {double}.
+     */
+    internal fun widenStepExpression(
+        expr: String,
+        castParams: Map<Int, String>,
+        params: List<StepParam>,
+    ): String {
+        if (castParams.isEmpty()) return expr
+
+        // Find all {placeholder} occurrences in order
+        val placeholderRegex = Regex("\\{([^}]+)}")
+        val matches = placeholderRegex.findAll(expr).toList()
+
+        var result = expr
+        // Process in reverse order to preserve indices
+        var placeholderIdx = matches.size - 1
+        for (match in matches.reversed()) {
+            if (placeholderIdx in castParams) {
+                val narrowType = castParams[placeholderIdx]!!
+                val widening = wideningMap[narrowType]
+                if (widening != null) {
+                    val widerPlaceholder = widening.first
+                    result = result.substring(0, match.range.first) +
+                        "{$widerPlaceholder}" +
+                        result.substring(match.range.last + 1)
+                }
+            }
+            placeholderIdx--
+        }
+
+        return result
     }
 
     /** Escape regex special characters in literal step text (outside {} tokens). */
@@ -196,5 +245,15 @@ internal object CodeGenerator {
         "double"  to "Double",
         "word"    to "String",
         "boolean" to "Boolean",
+    )
+
+    /**
+     * Widening map for @BehaveCast: narrow type → (wider placeholder, wider Kotlin type, conversion expression).
+     * The conversion expression uses `$p` as a placeholder for the parameter variable name.
+     */
+    internal val wideningMap = mapOf(
+        "Int" to Triple("double", "Double", "\$p.toInt()"),
+        "Long" to Triple("double", "Double", "\$p.toLong()"),
+        "Float" to Triple("double", "Double", "\$p.toFloat()"),
     )
 }

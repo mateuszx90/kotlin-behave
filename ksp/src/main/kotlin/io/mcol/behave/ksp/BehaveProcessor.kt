@@ -1,5 +1,6 @@
 package io.mcol.behave.ksp
 
+import com.google.devtools.ksp.getDeclaredFunctions
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.KSPLogger
@@ -79,6 +80,19 @@ class BehaveProcessor(
             }
         }
 
+        // Read @BehaveCast from implementing class methods
+        val behaveCasts = mutableMapOf<String, Set<Int>>() // methodName -> set of param indices with @BehaveCast
+        for (func in classDecl.getDeclaredFunctions()) {
+            val funcName = func.simpleName.asString()
+            val castIndices = func.parameters.mapIndexedNotNull { idx, param ->
+                val hasCast = param.annotations.any { it.shortName.asString() == "BehaveCast" }
+                if (hasCast) idx else null
+            }.toSet()
+            if (castIndices.isNotEmpty()) {
+                behaveCasts[funcName] = castIndices
+            }
+        }
+
         // Parse feature file
         val parsed = FeatureFileParser.parse(featureFile.readText())
 
@@ -89,28 +103,56 @@ class BehaveProcessor(
         val stepPairs = parsed.steps.map { it.keyword to it.text }
         val methodNames = MethodNameGenerator.resolveCollisions(stepPairs)
 
+        // Build a map from normalised key to all pre-dedup template texts (for type unification)
+        val templatesByNormKey = parsed.allStepTemplates.groupBy {
+            FeatureFileParser.normalise(it.keyword, it.text)
+        }
+
         // Build GeneratedStep list
         val generatedSteps = parsed.steps.mapIndexed { i, step ->
             val methodName = methodNames[i]
             val params = resolveParams(step, typeMappings, classDecl)
-            val rawExpr = io.mcol.behave.ksp.CodeGenerator.escapeStepExpression(
+            var rawExpr = io.mcol.behave.ksp.CodeGenerator.escapeStepExpression(
                 io.mcol.behave.ksp.CodeGenerator.replaceOutlineVariables(
                     io.mcol.behave.ksp.CodeGenerator.replaceNumberLiterals(
                         io.mcol.behave.ksp.CodeGenerator.replaceQuotedLiterals(step.text)
                     )
                 )
             )
+
+            // Unify {word} → {string} when any sibling template has a quoted literal
+            // at the same position (quoted literal produces {string}, outline variable produces {word})
+            if (rawExpr.contains("{word}")) {
+                val normKey = FeatureFileParser.normalise(step.keyword, step.text)
+                val siblings = templatesByNormKey[normKey] ?: emptyList()
+                val anyHasQuoted = siblings.any { sibling ->
+                    Regex("\"[^\"]*\"").containsMatchIn(sibling.text)
+                }
+                if (anyHasQuoted) {
+                    rawExpr = rawExpr.replace("{word}", "{string}")
+                }
+            }
+            // Build castParams: map of param index → original narrow type for @BehaveCast params
+            val castIndices = behaveCasts[methodName] ?: emptySet()
+            val castParams = mutableMapOf<Int, String>()
+            for (idx in castIndices) {
+                if (idx < params.size) {
+                    castParams[idx] = params[idx].typeName
+                }
+            }
+
             io.mcol.behave.ksp.CodeGenerator.GeneratedStep(
                 methodName = methodName,
                 params = params,
                 stepExpression = rawExpr,
                 originalKeyword = step.keyword,
                 originalText = step.text,
+                castParams = castParams,
             )
         }
 
         // Validate concrete values against declared placeholder types
-        validateTypes(generatedSteps, parsed.allStepInstances, classDecl)
+        validateTypes(generatedSteps, parsed.allStepInstances, classDecl, behaveCasts)
 
         // Generate Row class descriptors for DataTable steps.
         // Auto-generated row classes (simple name ending in "Row") are emitted as data classes.
@@ -269,12 +311,15 @@ class BehaveProcessor(
         generatedSteps: List<io.mcol.behave.ksp.CodeGenerator.GeneratedStep>,
         allRawSteps: List<FeatureFileParser.RawStep>,
         classDecl: KSClassDeclaration,
+        behaveCasts: Map<String, Set<Int>> = emptyMap(),
     ) {
         if (allRawSteps.isEmpty()) return
 
         for (genStep in generatedSteps) {
             val placeholderTypes = TypeValidator.extractPlaceholderTypes(genStep.stepExpression)
             if (placeholderTypes.isEmpty()) continue
+
+            val castIndices = behaveCasts[genStep.methodName] ?: emptySet()
 
             val normalisedGen = FeatureFileParser.normalise(genStep.originalKeyword, genStep.originalText)
             val matchingRaw = allRawSteps.filter { raw ->
@@ -285,6 +330,7 @@ class BehaveProcessor(
                 val concreteValues = TypeValidator.extractConcreteValues(raw.text, genStep.originalText)
                 for ((i, value) in concreteValues.withIndex()) {
                     if (i >= placeholderTypes.size) break
+                    if (i in castIndices) continue // @BehaveCast suppresses validation
                     val expectedType = placeholderTypes[i]
                     val pattern = TypeValidator.typeValidationPatterns[expectedType] ?: continue
                     if (!pattern.matches(value)) {
