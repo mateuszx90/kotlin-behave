@@ -70,7 +70,7 @@ internal object CodeGenerator {
 
         for (step in iface.steps) {
             val keyword = step.originalKeyword
-            val expr = step.stepExpression
+            val expr = step.stepExpression.replace("\"", "\\\"")
             if (step.params.isEmpty()) {
                 appendLine("                $keyword(\"$expr\") { ctx.${step.methodName}() }")
             } else {
@@ -88,7 +88,7 @@ internal object CodeGenerator {
         rowClasses: List<GeneratedRowClass>,
     ) {
         val keyword = step.originalKeyword
-        val expr = step.stepExpression
+        val expr = step.stepExpression.replace("\"", "\\\"")
 
         // Check if this step has a DataTable (List<...> param)
         val listParam = step.params.firstOrNull { it.typeName.startsWith("List<") }
@@ -151,6 +151,14 @@ internal object CodeGenerator {
         }
         return sb.toString()
     }
+
+    /**
+     * Replace "literal" and "<variable>" tokens with {string} for the step expression.
+     * Must be applied before [replaceOutlineVariables] so that quoted outline variables
+     * like "<answer>" become {string} rather than "{word}".
+     */
+    fun replaceQuotedLiterals(text: String): String =
+        text.replace(Regex("\"[^\"]*\""), "{string}")
 
     /** Convert <variable> tokens in step text to {word} for the emitted step expression. */
     fun replaceOutlineVariables(text: String): String =

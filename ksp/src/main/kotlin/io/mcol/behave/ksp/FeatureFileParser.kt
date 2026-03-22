@@ -68,9 +68,10 @@ internal object FeatureFileParser {
         return ParsedFeature(unique)
     }
 
-    /** Normalise for deduplication: lowercase, replace {placeholder} and <variable> with {}, trim. */
+    /** Normalise for deduplication: lowercase, replace {placeholder}, <variable>, and "literal" with {}, trim. */
     fun normalise(keyword: String, text: String): String {
         var s = "$keyword $text".lowercase()
+        s = s.replace(Regex("\"[^\"]*\""), "{}")   // "literal" and "<variable>" treated as placeholder
         s = s.replace(Regex("\\{[^}]+}"), "{}")
         s = s.replace(Regex("<[^>]+>"), "{}")
         return s.trim()

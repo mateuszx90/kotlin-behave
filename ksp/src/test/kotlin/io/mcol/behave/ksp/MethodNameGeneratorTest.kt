@@ -31,6 +31,21 @@ class MethodNameGeneratorTest {
     }
 
     @Test
+    fun `strips quoted literal strings from method name`() {
+        assertEquals("thenISeeTheQuestionWord", MethodNameGenerator.generate("Then", "I see the question word \"pies\""))
+    }
+
+    @Test
+    fun `strips quoted outline variable from method name`() {
+        assertEquals("whenITypeInTheAnswerField", MethodNameGenerator.generate("When", "I type \"<answer>\" in the answer field"))
+    }
+
+    @Test
+    fun `strips quoted literal for tap step`() {
+        assertEquals("whenITap", MethodNameGenerator.generate("When", "I tap \"Cancel\""))
+    }
+
+    @Test
     fun `handles And keyword`() {
         assertEquals("andIClickTheButton", MethodNameGenerator.generate("And", "I click the {label} button"))
     }

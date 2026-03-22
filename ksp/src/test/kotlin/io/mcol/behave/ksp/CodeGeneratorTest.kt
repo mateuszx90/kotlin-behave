@@ -28,6 +28,23 @@ class CodeGeneratorTest {
     }
 
     @Test
+    fun `replaceQuotedLiterals converts quoted literal to string placeholder`() {
+        assertEquals("I see the question word {string}", CodeGenerator.replaceQuotedLiterals("I see the question word \"pies\""))
+    }
+
+    @Test
+    fun `replaceQuotedLiterals converts quoted outline variable to string placeholder`() {
+        assertEquals("I type {string} in the answer field", CodeGenerator.replaceQuotedLiterals("I type \"<answer>\" in the answer field"))
+    }
+
+    @Test
+    fun `replaceQuotedLiterals then replaceOutlineVariables handles unquoted variable`() {
+        val text = "I see <type> feedback"
+        val result = CodeGenerator.replaceOutlineVariables(CodeGenerator.replaceQuotedLiterals(text))
+        assertEquals("I see {word} feedback", result)
+    }
+
+    @Test
     fun `renders interface with no-param method`() {
         val iface = CodeGenerator.GeneratedInterface(
             packageName = "com.example",

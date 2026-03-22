@@ -13,6 +13,7 @@ package io.mcol.behave.ksp
  */
 internal object MethodNameGenerator {
 
+    private val QUOTED_LITERAL_REGEX = Regex("\"[^\"]*\"")
     private val PLACEHOLDER_REGEX = Regex("\\{[^}]+}")
     private val VARIABLE_REGEX = Regex("<[^>]+>")
     private val NON_ALNUM = Regex("[^a-zA-Z0-9]+")
@@ -22,8 +23,9 @@ internal object MethodNameGenerator {
      * Does not handle collision — call [resolveCollisions] after generating all names.
      */
     fun generate(keyword: String, text: String): String {
-        // Strip placeholders and variables
+        // Strip quoted literals ("value"), placeholders, and outline variables
         var clean = text
+        clean = QUOTED_LITERAL_REGEX.replace(clean, " ")
         clean = PLACEHOLDER_REGEX.replace(clean, " ")
         clean = VARIABLE_REGEX.replace(clean, " ")
         // Strip trailing colon

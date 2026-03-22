@@ -10,6 +10,9 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import java.io.File
 
+private enum class Kind { PLACEHOLDER, QUOTED, VARIABLE }
+private data class Tok(val pos: Int, val kind: Kind, val name: String)
+
 class BehaveProcessor(
     private val codeGenerator: CodeGenerator,
     private val logger: KSPLogger,
@@ -91,7 +94,9 @@ class BehaveProcessor(
             val methodName = methodNames[i]
             val params = resolveParams(step, typeMappings, classDecl)
             val rawExpr = io.mcol.behave.ksp.CodeGenerator.escapeStepExpression(
-                io.mcol.behave.ksp.CodeGenerator.replaceOutlineVariables(step.text)
+                io.mcol.behave.ksp.CodeGenerator.replaceOutlineVariables(
+                    io.mcol.behave.ksp.CodeGenerator.replaceQuotedLiterals(step.text)
+                )
             )
             io.mcol.behave.ksp.CodeGenerator.GeneratedStep(
                 methodName = methodName,
@@ -102,9 +107,15 @@ class BehaveProcessor(
             )
         }
 
-        // Generate Row classes for multi-group DataTable steps
+        // Generate Row classes for auto-generated DataTable steps.
+        // Exclude steps where the list type is a user-defined @BehaveType (those contain '.' in the type name).
         val rowClasses = generatedSteps
-            .filter { step -> step.params.any { it.typeName.startsWith("List<") && it.typeName.endsWith("Row>") } }
+            .filter { step ->
+                step.params.any { param ->
+                    val innerType = param.typeName.removePrefix("List<").removeSuffix(">")
+                    param.typeName.startsWith("List<") && innerType.endsWith("Row") && !innerType.contains(".")
+                }
+            }
             .map { step ->
                 val listParam = step.params.first { it.typeName.startsWith("List<") }
                 val rowClassName = listParam.typeName.removePrefix("List<").removeSuffix(">")
@@ -169,33 +180,46 @@ class BehaveProcessor(
         typeMappings: List<io.mcol.behave.ksp.CodeGenerator.TypeMapping>,
         classDecl: KSClassDeclaration,
     ): List<io.mcol.behave.ksp.CodeGenerator.StepParam> {
-        if (step.hasDataTable) {
-            return resolveDataTableParams(step, typeMappings)
-        }
-        return resolveInlineParams(step.text, typeMappings)
+        // Always extract inline params (quoted literals, {placeholders}, <variables>)
+        val inlineParams = resolveInlineParams(step.text, typeMappings)
+        if (!step.hasDataTable) return inlineParams
+        // DataTable steps: prepend any inline string params before the rows param
+        return inlineParams + resolveDataTableParams(step, typeMappings)
     }
 
     private fun resolveInlineParams(
         text: String,
         typeMappings: List<io.mcol.behave.ksp.CodeGenerator.TypeMapping>,
     ): List<io.mcol.behave.ksp.CodeGenerator.StepParam> {
-        // Extract all tokens: {placeholder} and <variable>
-        val placeholderTokens = Regex("\\{([^}]+)}").findAll(text).map { it.groupValues[1] }.toList()
-        val variableTokens = Regex("<([^>]+)>").findAll(text).map { it.groupValues[1] }.toList()
+        // Find quoted string ranges first so we can exclude <variable> found inside "..."
+        val quotedRanges = Regex("\"[^\"]*\"").findAll(text).map { it.range }.toList()
+        fun inQuotes(pos: Int) = quotedRanges.any { pos in it }
 
+        // Collect all dynamic tokens in left-to-right order
+
+        val toks = buildList {
+            Regex("\\{([^}]+)}").findAll(text).forEach {
+                add(Tok(it.range.first, Kind.PLACEHOLDER, it.groupValues[1]))
+            }
+            // "..." — if content is exactly <variable>, use the variable name; else use "string"
+            Regex("\"([^\"]*)\"").findAll(text).forEach {
+                val inner = it.groupValues[1]
+                val varName = Regex("^<([^>]+)>$").find(inner)?.groupValues?.get(1)
+                add(Tok(it.range.first, Kind.QUOTED, varName ?: "string"))
+            }
+            // <variable> tokens NOT inside "..."
+            Regex("<([^>]+)>").findAll(text).filter { !inQuotes(it.range.first) }.forEach {
+                add(Tok(it.range.first, Kind.VARIABLE, it.groupValues[1]))
+            }
+        }.sortedBy { it.pos }
+
+        val placeholderNames = toks.filter { it.kind == Kind.PLACEHOLDER }.map { it.name }
+
+        // Apply field-based type mappings first (group multiple {placeholders} into one typed param)
         val params = mutableListOf<io.mcol.behave.ksp.CodeGenerator.StepParam>()
         val usedPlaceholders = mutableSetOf<String>()
-
-        // Priority 1: field-explicit type mappings
-        // Priority 2: field-auto-detect type mappings
-        // Priority 3: placeholder type mappings
-        val fieldMappings = typeMappings.filter { it.fields.isNotEmpty() || (it.placeholder.isEmpty() && it.fields.isEmpty()) }
-        val placeholderMappings = typeMappings.filter { it.placeholder.isNotEmpty() }
-
-        // Find field-based matches
-        for (mapping in fieldMappings) {
-            val allMatch = mapping.fields.isNotEmpty() && mapping.fields.all { it in placeholderTokens }
-            if (allMatch) {
+        for (mapping in typeMappings.filter { it.fields.isNotEmpty() }) {
+            if (mapping.fields.all { it in placeholderNames }) {
                 params.add(
                     io.mcol.behave.ksp.CodeGenerator.StepParam(
                         name = mapping.typeName.substringAfterLast('.').replaceFirstChar { it.lowercase() },
@@ -206,28 +230,32 @@ class BehaveProcessor(
             }
         }
 
-        // Remaining placeholders
-        val remainingPlaceholders = placeholderTokens.filter { it !in usedPlaceholders }
+        // Process remaining tokens left-to-right
+        val placeholderMappings = typeMappings.filter { it.placeholder.isNotEmpty() }
         val nameCounters = mutableMapOf<String, Int>()
 
-        for (p in remainingPlaceholders) {
-            val customMapping = placeholderMappings.firstOrNull { it.placeholder == p }
-            val (typeName, baseName) = when {
-                customMapping != null -> customMapping.typeName to p
-                p in io.mcol.behave.ksp.CodeGenerator.builtinTypes ->
-                    io.mcol.behave.ksp.CodeGenerator.builtinTypes[p]!! to p
-                else -> "String" to p
-            }
-            val count = nameCounters.getOrDefault(baseName, 0)
-            val paramName = if (count == 0 && placeholderTokens.count { it == p } == 1) baseName
-                           else "$baseName$count"
-            nameCounters[baseName] = count + 1
-            params.add(io.mcol.behave.ksp.CodeGenerator.StepParam(paramName, typeName))
-        }
+        for (tok in toks) {
+            if (tok.kind == Kind.PLACEHOLDER && tok.name in usedPlaceholders) continue
 
-        // <variable> tokens → String params
-        for (v in variableTokens) {
-            params.add(io.mcol.behave.ksp.CodeGenerator.StepParam(v, "String"))
+            val (typeName, baseName) = when (tok.kind) {
+                Kind.PLACEHOLDER -> {
+                    val custom = placeholderMappings.firstOrNull { it.placeholder == tok.name }
+                    when {
+                        custom != null -> custom.typeName to tok.name
+                        tok.name in io.mcol.behave.ksp.CodeGenerator.builtinTypes ->
+                            io.mcol.behave.ksp.CodeGenerator.builtinTypes[tok.name]!! to tok.name
+                        else -> "String" to tok.name
+                    }
+                }
+                Kind.QUOTED -> "String" to tok.name   // tok.name is variable name or "string"
+                Kind.VARIABLE -> "String" to tok.name
+            }
+
+            val idx = nameCounters.getOrDefault(baseName, 0)
+            val totalWithBase = toks.count { it.name == baseName }
+            val paramName = if (idx == 0 && totalWithBase == 1) baseName else "$baseName$idx"
+            nameCounters[baseName] = idx + 1
+            params.add(io.mcol.behave.ksp.CodeGenerator.StepParam(paramName, typeName))
         }
 
         return params

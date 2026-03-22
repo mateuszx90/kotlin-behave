@@ -89,6 +89,26 @@ class FeatureFileParserTest {
     }
 
     @Test
+    fun `quoted literals normalise like placeholders for deduplication`() {
+        val n1 = FeatureFileParser.normalise("Then", "I see the question word \"pies\"")
+        val n2 = FeatureFileParser.normalise("Then", "I see the question word \"kot\"")
+        assertEquals(n1, n2) // "pies" and "kot" both become {}
+    }
+
+    @Test
+    fun `quoted literal steps with different literals are deduplicated`() {
+        val feature = """
+            Feature: F
+              Scenario: first
+                When I tap "Cancel"
+              Scenario: second
+                When I tap "Discard"
+        """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertEquals(1, parsed.steps.size) // deduplicated: same step pattern
+    }
+
+    @Test
     fun `And and But steps are included`() {
         val feature = """
             Feature: F
