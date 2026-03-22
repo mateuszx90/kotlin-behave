@@ -17,8 +17,15 @@ internal object FeatureFileParser {
         val tableColumns: List<String>, // column headers if DataTable present
     )
 
+    data class RawStep(
+        val keyword: String,      // "Given" | "When" | "Then" | "And" | "But"
+        val text: String,         // original text before normalization (concrete values intact)
+        val scenarioName: String, // for error reporting: which scenario this step appears in
+    )
+
     data class ParsedFeature(
-        val steps: List<ParsedStep>, // all unique steps (Background + Scenarios + Outlines pre-expansion)
+        val steps: List<ParsedStep>,             // all unique steps (deduplicated)
+        val allStepInstances: List<RawStep>,      // all concrete values preserved (for type validation)
     )
 
     private val keywords = listOf("Given", "When", "Then", "And", "But")
@@ -27,10 +34,23 @@ internal object FeatureFileParser {
     fun parse(featureText: String): ParsedFeature {
         val lines = featureText.lines().map { it.trim() }
         val allSteps = mutableListOf<ParsedStep>()
+        val allRawSteps = mutableListOf<RawStep>()
+        var currentScenarioName = ""
 
         var i = 0
         while (i < lines.size) {
             val line = lines[i]
+
+            // Track current scenario/background name
+            when {
+                line.startsWith("Scenario Outline:") ->
+                    currentScenarioName = line.removePrefix("Scenario Outline:").trim()
+                line.startsWith("Scenario:") ->
+                    currentScenarioName = line.removePrefix("Scenario:").trim()
+                line.startsWith("Background:") ->
+                    currentScenarioName = "Background"
+            }
+
             val keyword = keywords.firstOrNull { line.startsWith("$it ") }
             if (keyword != null) {
                 val text = line.removePrefix("$keyword ").trim()
@@ -54,6 +74,7 @@ internal object FeatureFileParser {
                     }
                 }
                 allSteps.add(ParsedStep(keyword, text, hasTable, tableColumns))
+                allRawSteps.add(RawStep(keyword, text, currentScenarioName))
             }
             i++
         }
@@ -65,7 +86,7 @@ internal object FeatureFileParser {
             seen.add(normalised)
         }
 
-        return ParsedFeature(unique)
+        return ParsedFeature(unique, allRawSteps)
     }
 
     /** Normalise for deduplication: lowercase, replace {placeholder}, <variable>, and "literal" with {}, trim. */

@@ -120,4 +120,47 @@ class FeatureFileParserTest {
         val parsed = FeatureFileParser.parse(feature)
         assertEquals(3, parsed.steps.size)
     }
+
+    @Test
+    fun `allStepInstances preserves all concrete values before deduplication`() {
+        val feature = """
+            Feature: F
+              Scenario: first
+                When I tap "Cancel"
+              Scenario: second
+                When I tap "Discard"
+        """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertEquals(1, parsed.steps.size) // deduplicated
+        assertEquals(2, parsed.allStepInstances.size) // both raw instances
+        assertTrue(parsed.allStepInstances.any { it.text.contains("Cancel") })
+        assertTrue(parsed.allStepInstances.any { it.text.contains("Discard") })
+    }
+
+    @Test
+    fun `allStepInstances includes scenario name for error reporting`() {
+        val feature = """
+            Feature: F
+              Scenario: Create pasta
+                When I create something named "Pasta"
+              Scenario: Create salad
+                When I create something named "Salad"
+        """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        val pastaInstance = parsed.allStepInstances.first { it.text.contains("Pasta") }
+        assertEquals("Create pasta", pastaInstance.scenarioName)
+    }
+
+    @Test
+    fun `allStepInstances includes background steps`() {
+        val feature = """
+            Feature: F
+              Background:
+                Given I am logged in
+              Scenario: first
+                When I do something
+        """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertTrue(parsed.allStepInstances.any { it.keyword == "Given" })
+    }
 }
