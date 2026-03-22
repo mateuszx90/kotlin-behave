@@ -169,6 +169,20 @@ internal object CodeGenerator {
     fun replaceQuotedLiterals(text: String): String =
         text.replace(Regex("\"[^\"]*\""), "{string}")
 
+    /**
+     * Replace standalone number literals with typed placeholders.
+     * Doubles are matched first to prevent partial matches (e.g., 5.5 becoming {int}.5).
+     * Numbers must be surrounded by whitespace (or at start/end of text) — no embedded digits.
+     * Must be called AFTER [replaceQuotedLiterals] so numbers inside quotes are already consumed.
+     * Does not touch numbers inside existing {placeholders}.
+     */
+    fun replaceNumberLiterals(text: String): String {
+        var result = text
+        result = result.replace(Regex("""(?<!\S)-?\d+\.\d+(?!\S)"""), "{double}")
+        result = result.replace(Regex("""(?<!\S)-?\d+(?!\S)"""), "{int}")
+        return result
+    }
+
     /** Convert <variable> tokens in step text to {word} for the emitted step expression. */
     fun replaceOutlineVariables(text: String): String =
         text.replace(Regex("<([^>]+)>"), "{word}")

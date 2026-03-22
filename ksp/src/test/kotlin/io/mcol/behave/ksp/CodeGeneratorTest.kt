@@ -118,4 +118,52 @@ class CodeGeneratorTest {
     fun `builtinTypes includes boolean mapping`() {
         assertEquals("Boolean", CodeGenerator.builtinTypes["boolean"])
     }
+
+    @Test
+    fun `replaceNumberLiterals replaces standalone integer with int placeholder`() {
+        assertEquals(
+            "I create a recipe with {int} portions named {string}",
+            CodeGenerator.replaceNumberLiterals("I create a recipe with 4 portions named {string}"),
+        )
+    }
+
+    @Test
+    fun `replaceNumberLiterals replaces standalone double with double placeholder`() {
+        assertEquals("the value is {double}", CodeGenerator.replaceNumberLiterals("the value is 5.5"))
+    }
+
+    @Test
+    fun `replaceNumberLiterals does not match numbers embedded in words`() {
+        assertEquals("step2go is fun", CodeGenerator.replaceNumberLiterals("step2go is fun"))
+    }
+
+    @Test
+    fun `replaceNumberLiterals handles negative integers`() {
+        assertEquals("I have {int} items", CodeGenerator.replaceNumberLiterals("I have -3 items"))
+    }
+
+    @Test
+    fun `replaceNumberLiterals handles negative doubles`() {
+        assertEquals("temperature is {double}", CodeGenerator.replaceNumberLiterals("temperature is -1.5"))
+    }
+
+    @Test
+    fun `replaceNumberLiterals does not match number followed by period at end`() {
+        assertEquals("there are 4.", CodeGenerator.replaceNumberLiterals("there are 4."))
+    }
+
+    @Test
+    fun `replaceNumberLiterals matches double first before integer`() {
+        assertEquals("value {double} and {int}", CodeGenerator.replaceNumberLiterals("value 5.5 and 3"))
+    }
+
+    @Test
+    fun `replaceNumberLiterals does not touch numbers inside existing placeholders`() {
+        assertEquals("I have {int} items", CodeGenerator.replaceNumberLiterals("I have {int} items"))
+    }
+
+    @Test
+    fun `replaceNumberLiterals does not match hyphenated word before number`() {
+        assertEquals("re-enter {int} items", CodeGenerator.replaceNumberLiterals("re-enter 5 items"))
+    }
 }
