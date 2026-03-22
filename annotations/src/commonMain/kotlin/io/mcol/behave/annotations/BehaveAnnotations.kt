@@ -33,3 +33,16 @@ annotation class BehaveType(
     val type: KClass<*>,
     val fields: Array<String> = [],
 )
+
+/**
+ * Marks a parameter for lossy type casting in generated step definitions.
+ *
+ * When a step has `{int}` but concrete values include decimals (e.g., `5.5`),
+ * annotating the parameter with `@BehaveCast` suppresses the compile-time type
+ * error and generates conversion code that truncates the value.
+ *
+ * @param lossy When true, allows truncating conversions (e.g., Double → Int).
+ */
+@Target(AnnotationTarget.VALUE_PARAMETER)
+@Retention(AnnotationRetention.SOURCE)
+annotation class BehaveCast(val lossy: Boolean = true)
