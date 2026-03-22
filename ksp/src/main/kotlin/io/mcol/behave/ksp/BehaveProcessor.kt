@@ -11,7 +11,7 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import java.io.File
 
-private enum class Kind { PLACEHOLDER, QUOTED, VARIABLE }
+private enum class Kind { PLACEHOLDER, QUOTED, VARIABLE, NUMBER }
 private data class Tok(val pos: Int, val kind: Kind, val name: String)
 
 class BehaveProcessor(
@@ -257,6 +257,18 @@ class BehaveProcessor(
             Regex("<([^>]+)>").findAll(text).filter { !inQuotes(it.range.first) }.forEach {
                 add(Tok(it.range.first, Kind.VARIABLE, it.groupValues[1]))
             }
+            // Standalone number literals (not inside quotes or placeholders)
+            // Doubles first, then integers — same order as CodeGenerator.replaceNumberLiterals
+            val coveredRanges = map { it.pos..(it.pos) } // approximate; refine below
+            Regex("""(?<!\S)-?\d+\.\d+(?!\S)""").findAll(text)
+                .filter { m -> !inQuotes(m.range.first) && none { tok -> m.range.first in (tok.pos..tok.pos) } }
+                .forEach { add(Tok(it.range.first, Kind.NUMBER, "double")) }
+            Regex("""(?<!\S)-?\d+(?!\S)""").findAll(text)
+                .filter { m ->
+                    !inQuotes(m.range.first) &&
+                    none { tok -> m.range.first >= tok.pos && m.range.first <= tok.pos + 10 && tok.kind == Kind.NUMBER }
+                }
+                .forEach { add(Tok(it.range.first, Kind.NUMBER, "int")) }
         }.sortedBy { it.pos }
 
         val placeholderNames = toks.filter { it.kind == Kind.PLACEHOLDER }.map { it.name }
@@ -295,6 +307,10 @@ class BehaveProcessor(
                 }
                 Kind.QUOTED -> "String" to tok.name   // tok.name is variable name or "string"
                 Kind.VARIABLE -> "String" to tok.name
+                Kind.NUMBER -> {
+                    val kotlinType = io.mcol.behave.ksp.CodeGenerator.builtinTypes[tok.name] ?: "Int"
+                    kotlinType to tok.name
+                }
             }
 
             val idx = nameCounters.getOrDefault(baseName, 0)
