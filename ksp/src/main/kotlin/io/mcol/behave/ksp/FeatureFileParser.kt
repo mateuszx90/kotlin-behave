@@ -36,19 +36,64 @@ internal object FeatureFileParser {
         val allSteps = mutableListOf<ParsedStep>()
         val allRawSteps = mutableListOf<RawStep>()
         var currentScenarioName = ""
+        var inOutline = false
+        var outlineName = ""
+        var outlineSteps = mutableListOf<Pair<String, String>>() // keyword, text
 
         var i = 0
         while (i < lines.size) {
             val line = lines[i]
 
-            // Track current scenario/background name
+            // Track current scenario/background name and outline context
             when {
-                line.startsWith("Scenario Outline:") ->
-                    currentScenarioName = line.removePrefix("Scenario Outline:").trim()
-                line.startsWith("Scenario:") ->
+                line.startsWith("Scenario Outline:") -> {
+                    inOutline = true
+                    outlineName = line.removePrefix("Scenario Outline:").trim()
+                    outlineSteps = mutableListOf()
+                    currentScenarioName = outlineName
+                }
+                line.startsWith("Scenario:") -> {
+                    inOutline = false
                     currentScenarioName = line.removePrefix("Scenario:").trim()
-                line.startsWith("Background:") ->
+                }
+                line.startsWith("Background:") -> {
+                    inOutline = false
                     currentScenarioName = "Background"
+                }
+            }
+
+            // Expand Scenario Outline Examples into allRawSteps
+            if (line.startsWith("Examples:")) {
+                var j = i + 1
+                var header = emptyList<String>()
+                val dataRows = mutableListOf<List<String>>()
+                while (j < lines.size) {
+                    val next = lines[j].trim()
+                    when {
+                        next.isBlank() || next.startsWith("#") -> { j++; continue }
+                        next.startsWith("|") -> {
+                            val cells = parseTableRow(next)
+                            if (header.isEmpty()) header = cells else dataRows.add(cells)
+                            j++
+                        }
+                        else -> break
+                    }
+                }
+                for (row in dataRows) {
+                    val substitutions = header.zip(row).toMap()
+                    val expandedOutlineName = substitutions.entries.fold(outlineName) { name, (variable, value) ->
+                        name.replace("<$variable>", value)
+                    }
+                    for ((kw, stepText) in outlineSteps) {
+                        var expanded = stepText
+                        for ((variable, value) in substitutions) {
+                            expanded = expanded.replace("<$variable>", value)
+                        }
+                        allRawSteps.add(RawStep(kw, expanded, expandedOutlineName))
+                    }
+                }
+                i++
+                continue
             }
 
             val keyword = keywords.firstOrNull { line.startsWith("$it ") }
@@ -74,7 +119,12 @@ internal object FeatureFileParser {
                     }
                 }
                 allSteps.add(ParsedStep(keyword, text, hasTable, tableColumns))
-                allRawSteps.add(RawStep(keyword, text, currentScenarioName))
+                if (inOutline) {
+                    // Template steps go to outlineSteps; expanded rows added when Examples: is hit
+                    outlineSteps.add(keyword to text)
+                } else {
+                    allRawSteps.add(RawStep(keyword, text, currentScenarioName))
+                }
             }
             i++
         }

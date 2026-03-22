@@ -216,6 +216,40 @@ class FeatureFileParserTest {
     }
 
     @Test
+    fun `Scenario Outline steps are expanded into allStepInstances`() {
+        val feature = """
+            Feature: F
+              Scenario Outline: Click
+                When I click <count> times
+                Examples:
+                  | count |
+                  | 3     |
+                  | 5     |
+        """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        val clickInstances = parsed.allStepInstances.filter { it.text.contains("click") }
+        assertEquals(2, clickInstances.size)
+        assertTrue(clickInstances.any { it.text == "I click 3 times" })
+        assertTrue(clickInstances.any { it.text == "I click 5 times" })
+    }
+
+    @Test
+    fun `Outline expanded steps include scenario name with row values`() {
+        val feature = """
+            Feature: F
+              Scenario Outline: Login as <role>
+                Given I am logged in as <role>
+                Examples:
+                  | role  |
+                  | admin |
+                  | user  |
+        """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        val adminStep = parsed.allStepInstances.first { it.text.contains("admin") }
+        assertTrue(adminStep.scenarioName.contains("admin"))
+    }
+
+    @Test
     fun `type validation patterns match correctly`() {
         val patterns = TypeValidator.typeValidationPatterns
         assertTrue(patterns["int"]!!.matches("4"))
