@@ -72,16 +72,21 @@ class TypeRegistry {
     fun compile(expression: String): CompiledExpression {
         val active = activePlaceholders()
         var pattern = expression
-        val converters = mutableListOf<(String) -> Any>()
         val isCucumber = active.any { expression.contains(it.pattern) }
 
         if (isCucumber) {
+            // Collect (position, converter) pairs so converters are ordered by
+            // their left-to-right position in the expression, not by placeholder
+            // definition order.
+            val positioned = mutableListOf<Pair<Int, (String) -> Any>>()
             for (ph in active) {
                 while (pattern.contains(ph.pattern)) {
+                    val pos = pattern.indexOf(ph.pattern)
                     pattern = pattern.replaceFirst(ph.pattern, "(${ph.regexGroup})")
-                    converters.add(ph.convert)
+                    positioned.add(pos to ph.convert)
                 }
             }
+            val converters = positioned.sortedBy { it.first }.map { it.second }
             val regex = Regex("^$pattern$")
             return CompiledExpression(regex) { match ->
                 match.groupValues.drop(1).mapIndexed { i, v -> converters[i](v) }

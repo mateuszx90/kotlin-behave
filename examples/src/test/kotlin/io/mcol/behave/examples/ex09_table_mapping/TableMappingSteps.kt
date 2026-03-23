@@ -57,7 +57,7 @@ class TableMappingSteps : TableMappingStepsSpec {
         collections.getOrPut(string) { mutableListOf() }.addAll(rows)
     }
 
-    override suspend fun thenWordsBelongToTheCollection(int: Int, string: String) {
+    override suspend fun thenTheCollectionHasWords(string: String, int: Int) {
         assertEquals(int, collections[string]?.size ?: 0)
     }
 

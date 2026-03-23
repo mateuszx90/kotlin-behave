@@ -75,6 +75,37 @@ class TypeRegistryTest {
     }
 
     @Test
+    fun `compiles string before int — converters follow text order not definition order`() {
+        val compiled = TypeRegistry().compile("the collection {string} has {int} words")
+        val match = compiled.regex.matchEntire("""the collection "Animals" has 2 words""")
+        assertNotNull(match)
+        val values = compiled.convert(match!!)
+        assertEquals("Animals", values[0])
+        assertEquals(2, values[1])
+    }
+
+    @Test
+    fun `compiles string before double — converters follow text order`() {
+        val compiled = TypeRegistry().compile("item {string} costs {double}")
+        val match = compiled.regex.matchEntire("""item "Apple" costs 1.99""")
+        assertNotNull(match)
+        val values = compiled.convert(match!!)
+        assertEquals("Apple", values[0])
+        assertEquals(1.99, values[1])
+    }
+
+    @Test
+    fun `compiles word between two ints — converters follow text order`() {
+        val compiled = TypeRegistry().compile("{int} {word} items cost {int} dollars")
+        val match = compiled.regex.matchEntire("3 fancy items cost 15 dollars")
+        assertNotNull(match)
+        val values = compiled.convert(match!!)
+        assertEquals(3, values[0])
+        assertEquals("fancy", values[1])
+        assertEquals(15, values[2])
+    }
+
+    @Test
     fun `raw regex capture groups return String`() {
         val compiled = TypeRegistry().compile("""have (\d+) words""")
         val match = compiled.regex.matchEntire("have 5 words")

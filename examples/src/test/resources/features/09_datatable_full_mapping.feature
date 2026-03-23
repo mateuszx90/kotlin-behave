@@ -30,7 +30,7 @@ Feature: DataTable full type mapping
       | polish | english |
       | pies   | dog     |
       | kot    | cat     |
-    Then 2 words belong to the collection "Animals"
+    Then the collection "Animals" has 2 words
 
   Scenario: Import items with numeric columns
     Given the following inventory:
