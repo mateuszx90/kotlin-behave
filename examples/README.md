@@ -20,6 +20,8 @@ Each example is a `.feature` file + Kotlin step definitions + Kotest test runner
 | 5 | `ex05_outline` | Scenario Outline | `<variable>` tokens, `Examples` table, quoted vs unquoted |
 | 6 | `ex06_tables` | Data Tables | `\| column \|` tables, auto-generated Row data class |
 | 7 | `ex07_placeholder_type` | @BehaveType — placeholder | Single `{token}` → custom type with `parameterType()` |
+| 8 | `ex08_multi_outline` | Multi-column outline | 4-column Examples, multiple outlines, quoted/unquoted vars |
+| 9 | `ex09_table_mapping` | DataTable full mapping | `@BehaveType` covering all columns, DataTable + inline params, Background with table |
 | 10 | `ex10_typed_table` | DataTable + @BehaveType | Typed DataTable rows with composite types |
 | 11 | `ex11_cast` | @BehaveCast | Lossy conversion (`Int` receiving decimals) |
 | 12 | `ex12_tags` | Tags | `@tag` filtering, boolean expressions (`and`/`or`/`not`) |
