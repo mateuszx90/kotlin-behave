@@ -48,6 +48,11 @@ class BehaveProcessor(
             .firstOrNull { it.name?.asString() == "generateTest" }
             ?.value as? Boolean ?: true
 
+        // Check if the class implements ScenarioRunner
+        val hasScenarioRunner = classDecl.superTypes.any { ref ->
+            ref.resolve().declaration.qualifiedName?.asString() == "io.mcol.behave.steps.ScenarioRunner"
+        }
+
         // Resolve feature file
         val featureDir = options["behave.featureDir"] ?: "src/commonTest/resources"
         val featureFile = File(projectDir, "$featureDir/$featurePath")
@@ -190,6 +195,7 @@ class BehaveProcessor(
             implementingClassName = className,
             featurePath = featurePath,
             generateTest = generateTest,
+            hasScenarioRunner = hasScenarioRunner,
             steps = generatedSteps,
             rowClasses = rowClasses,
         )
