@@ -37,4 +37,3 @@ class OutlineSteps : OutlineStepsSpec {
     }
 }
 
-val generatedOutlineSteps = OutlineStepsSpec.steps { OutlineSteps() }

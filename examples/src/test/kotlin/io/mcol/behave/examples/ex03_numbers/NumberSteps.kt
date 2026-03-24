@@ -46,4 +46,3 @@ class NumberSteps : NumberStepsSpec {
     }
 }
 
-val generatedNumberSteps = NumberStepsSpec.steps { NumberSteps() }

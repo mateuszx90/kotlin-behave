@@ -8,10 +8,17 @@ import kotlin.reflect.KClass
  *
  * @param path Path to the .feature file, relative to [behave.featureDir] KSP option
  *             (default: "src/commonTest/resources").
+ * @param generateTest When true (default), KSP also generates a `val generatedXxxSteps`
+ *                     instance and a Kotest `FreeSpec` test class. Set to false when you
+ *                     need custom wiring (e.g. `parameterType()` registration, hooks, or
+ *                     tag filtering).
  */
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.SOURCE)
-annotation class BehaveFeature(val path: String)
+annotation class BehaveFeature(
+    val path: String,
+    val generateTest: Boolean = true,
+)
 
 /**
  * Configures type mapping for placeholders or DataTable columns in steps.

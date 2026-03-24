@@ -32,4 +32,3 @@ class CollisionSteps : CollisionStepsSpec {
     }
 }
 
-val generatedCollisionSteps = CollisionStepsSpec.steps { CollisionSteps() }

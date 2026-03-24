@@ -78,4 +78,4 @@ class IntegrationSteps : IntegrationStepsSpec {
     }
 }
 
-val generatedIntegrationSteps = IntegrationStepsSpec.steps { IntegrationSteps() }
+// KSP generates generatedIntegrationSteps and IntegrationGherkinTest automatically.
