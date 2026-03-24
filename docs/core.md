@@ -115,11 +115,37 @@ val steps = steps(::MyCtx) {
 ### Execution Order
 
 ```
-1. Before hooks (registration order)
-2. Background steps
-3. Scenario steps
-4. After hooks (REVERSE registration order)
+1. ScenarioRunner.runScenario() — external harness (if present)
+2.   Before hooks (registration order)
+3.   Background steps
+4.   Scenario steps
+5.   After hooks (REVERSE registration order)
 ```
+
+### Interface-Based Hooks (with KSP)
+
+When using KSP code generation, you can declare hooks as interfaces on the Steps class
+instead of registering them in a `steps {}` builder. KSP detects these and generates
+the hook registration automatically:
+
+```kotlin
+@BehaveFeature("features/todo.feature")
+class TodoSteps : TodoStepsSpec, ScenarioHooks {
+    override suspend fun beforeScenario() { db.clear() }
+    override suspend fun afterScenario(info: ScenarioInfo) { log(info) }
+}
+```
+
+Available interfaces:
+
+| Interface | Methods |
+|-----------|---------|
+| `BeforeScenario` | `suspend fun beforeScenario()` |
+| `AfterScenario` | `suspend fun afterScenario(info: ScenarioInfo)` |
+| `ScenarioHooks` | Both with default no-ops |
+| `ScenarioRunner` | `fun runScenario(ctx: Any, run: () -> Unit)` — external test harness |
+
+See [KSP documentation](ksp.md) for full details and examples.
 
 ## Pending Steps
 
