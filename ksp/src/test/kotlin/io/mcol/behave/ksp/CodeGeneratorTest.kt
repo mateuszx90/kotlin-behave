@@ -52,6 +52,7 @@ class CodeGeneratorTest {
             implementingClassName = "LoginSteps",
             featurePath = "features/login.feature",
             generateTest = true,
+            hasScenarioRunner = false,
             steps = listOf(
                 CodeGenerator.GeneratedStep(
                     methodName = "givenIAmOnTheLoginPage",
@@ -79,6 +80,7 @@ class CodeGeneratorTest {
             implementingClassName = "Steps",
             featurePath = "features/test.feature",
             generateTest = true,
+            hasScenarioRunner = false,
             steps = listOf(
                 CodeGenerator.GeneratedStep(
                     methodName = "whenIEnterAsUsername",
@@ -103,6 +105,7 @@ class CodeGeneratorTest {
             implementingClassName = "Foo",
             featurePath = "features/foo.feature",
             generateTest = false,
+            hasScenarioRunner = false,
             steps = emptyList(),
             rowClasses = emptyList(),
         )
@@ -118,6 +121,7 @@ class CodeGeneratorTest {
             implementingClassName = "LoginSteps",
             featurePath = "features/login.feature",
             generateTest = true,
+            hasScenarioRunner = false,
             steps = emptyList(),
             rowClasses = emptyList(),
         )
@@ -125,6 +129,43 @@ class CodeGeneratorTest {
         assertTrue(source.contains("val generatedLoginSteps = LoginStepsSpec.steps { LoginSteps() }"))
         assertTrue(source.contains("class LoginGherkinTest : FreeSpec({"))
         assertTrue(source.contains("""gherkin("features/login.feature", generatedLoginSteps)"""))
+        assertFalse(source.contains("ScenarioRunner"))
+    }
+
+    @Test
+    fun `renders per-scenario runner when hasScenarioRunner is true`() {
+        val iface = CodeGenerator.GeneratedInterface(
+            packageName = "com.example",
+            interfaceName = "LoginStepsSpec",
+            implementingClassName = "LoginSteps",
+            featurePath = "features/login.feature",
+            generateTest = true,
+            hasScenarioRunner = true,
+            steps = emptyList(),
+            rowClasses = emptyList(),
+        )
+        val source = CodeGenerator.render(iface)
+        assertTrue(source.contains("val generatedLoginSteps"))
+        assertTrue(source.contains("class LoginGherkinTest : FreeSpec({"))
+        assertTrue(source.contains("(ctx as ScenarioRunner).runScenario(ctx, run)"))
+        assertTrue(source.contains("import io.mcol.behave.steps.ScenarioRunner"))
+    }
+
+    @Test
+    fun `skips ScenarioRunner import when hasScenarioRunner is false`() {
+        val iface = CodeGenerator.GeneratedInterface(
+            packageName = "com.example",
+            interfaceName = "LoginStepsSpec",
+            implementingClassName = "LoginSteps",
+            featurePath = "features/login.feature",
+            generateTest = true,
+            hasScenarioRunner = false,
+            steps = emptyList(),
+            rowClasses = emptyList(),
+        )
+        val source = CodeGenerator.render(iface)
+        assertFalse(source.contains("import io.mcol.behave.steps.ScenarioRunner"))
+        assertFalse(source.contains("runScenario"))
     }
 
     @Test
@@ -135,6 +176,7 @@ class CodeGeneratorTest {
             implementingClassName = "LoginSteps",
             featurePath = "features/login.feature",
             generateTest = false,
+            hasScenarioRunner = false,
             steps = emptyList(),
             rowClasses = emptyList(),
         )

@@ -37,6 +37,7 @@ internal object CodeGenerator {
         val implementingClassName: String, // e.g. "LoginSteps"
         val featurePath: String,         // e.g. "features/login.feature"
         val generateTest: Boolean,       // when false, skip val + test class generation
+        val hasScenarioRunner: Boolean,  // when true, generate per-scenario runner variant
         val steps: List<GeneratedStep>,
         val rowClasses: List<GeneratedRowClass>,
     )
@@ -47,6 +48,9 @@ internal object CodeGenerator {
         appendLine()
         appendLine("import io.kotest.core.spec.style.FreeSpec")
         appendLine("import io.mcol.behave.kotest.gherkin")
+        if (iface.hasScenarioRunner) {
+            appendLine("import io.mcol.behave.steps.ScenarioRunner")
+        }
         appendLine()
 
         // Row classes first (only emit auto-generated ones, not user-defined)
@@ -102,7 +106,13 @@ internal object CodeGenerator {
             val testClassName = "${baseName}GherkinTest"
             val escapedPath = iface.featurePath.replace("\"", "\\\"")
             appendLine("class $testClassName : FreeSpec({")
-            appendLine("    gherkin(\"$escapedPath\", $stepsVarName)")
+            if (iface.hasScenarioRunner) {
+                appendLine("    gherkin(\"$escapedPath\", $stepsVarName) { ctx, run ->")
+                appendLine("        (ctx as ScenarioRunner).runScenario(ctx, run)")
+                appendLine("    }")
+            } else {
+                appendLine("    gherkin(\"$escapedPath\", $stepsVarName)")
+            }
             appendLine("})")
         }
     }
