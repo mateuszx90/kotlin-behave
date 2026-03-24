@@ -73,4 +73,3 @@ class MultiOutlineSteps : MultiOutlineStepsSpec {
     }
 }
 
-val generatedMultiOutlineSteps = MultiOutlineStepsSpec.steps { MultiOutlineSteps() }

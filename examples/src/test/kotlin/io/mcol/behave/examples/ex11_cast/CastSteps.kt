@@ -35,4 +35,3 @@ class CastSteps : CastStepsSpec {
     }
 }
 
-val generatedCastSteps = CastStepsSpec.steps { CastSteps() }

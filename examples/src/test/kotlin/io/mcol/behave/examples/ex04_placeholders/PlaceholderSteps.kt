@@ -47,4 +47,3 @@ class PlaceholderSteps : PlaceholderStepsSpec {
     }
 }
 
-val generatedPlaceholderSteps = PlaceholderStepsSpec.steps { PlaceholderSteps() }

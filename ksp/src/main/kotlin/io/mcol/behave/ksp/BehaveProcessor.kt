@@ -44,6 +44,9 @@ class BehaveProcessor(
         val featurePath = featureAnnotation.arguments
             .first { it.name?.asString() == "path" }
             .value as String
+        val generateTest = featureAnnotation.arguments
+            .firstOrNull { it.name?.asString() == "generateTest" }
+            ?.value as? Boolean ?: true
 
         // Resolve feature file
         val featureDir = options["behave.featureDir"] ?: "src/commonTest/resources"
@@ -185,6 +188,8 @@ class BehaveProcessor(
             packageName = packageName,
             interfaceName = interfaceName,
             implementingClassName = className,
+            featurePath = featurePath,
+            generateTest = generateTest,
             steps = generatedSteps,
             rowClasses = rowClasses,
         )

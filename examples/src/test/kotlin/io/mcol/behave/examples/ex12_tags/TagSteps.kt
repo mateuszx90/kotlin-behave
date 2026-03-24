@@ -45,4 +45,5 @@ class TagSteps : TagStepsSpec {
     }
 }
 
-val generatedTagSteps = TagStepsSpec.steps { TagSteps() }
+// KSP generates generatedTagSteps and TagGherkinTest (runs all scenarios).
+// Below are additional test classes demonstrating tag filtering.

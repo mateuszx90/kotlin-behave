@@ -34,4 +34,3 @@ class StringSteps : StringStepsSpec {
     }
 }
 
-val generatedStringSteps = StringStepsSpec.steps { StringSteps() }

@@ -30,4 +30,3 @@ class TableSteps : TableStepsSpec {
     }
 }
 
-val generatedTableSteps = TableStepsSpec.steps { TableSteps() }

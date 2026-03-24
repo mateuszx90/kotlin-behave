@@ -51,4 +51,3 @@ class BasicSteps : BasicStepsSpec {
     }
 }
 
-val generatedBasicSteps = BasicStepsSpec.steps { BasicSteps() }

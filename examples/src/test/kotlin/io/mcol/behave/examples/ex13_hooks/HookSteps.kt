@@ -22,7 +22,7 @@ import io.mcol.behave.annotations.BehaveFeature
 import io.mcol.behave.steps.ScenarioInfo
 import io.mcol.behave.steps.steps
 
-@BehaveFeature("features/13_hooks.feature")
+@BehaveFeature("features/13_hooks.feature", generateTest = false)
 class HookSteps : HookStepsSpec {
 
     val db = mutableSetOf<String>()

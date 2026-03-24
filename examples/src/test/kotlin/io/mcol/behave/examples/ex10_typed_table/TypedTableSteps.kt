@@ -40,4 +40,3 @@ class TypedTableSteps : TypedTableStepsSpec {
     }
 }
 
-val generatedTypedTableSteps = TypedTableStepsSpec.steps { TypedTableSteps() }
