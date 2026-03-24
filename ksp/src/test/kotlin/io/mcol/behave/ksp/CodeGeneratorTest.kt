@@ -53,6 +53,8 @@ class CodeGeneratorTest {
             featurePath = "features/login.feature",
             generateTest = true,
             hasScenarioRunner = false,
+            hasBeforeScenario = false,
+            hasAfterScenario = false,
             steps = listOf(
                 CodeGenerator.GeneratedStep(
                     methodName = "givenIAmOnTheLoginPage",
@@ -81,6 +83,8 @@ class CodeGeneratorTest {
             featurePath = "features/test.feature",
             generateTest = true,
             hasScenarioRunner = false,
+            hasBeforeScenario = false,
+            hasAfterScenario = false,
             steps = listOf(
                 CodeGenerator.GeneratedStep(
                     methodName = "whenIEnterAsUsername",
@@ -106,6 +110,8 @@ class CodeGeneratorTest {
             featurePath = "features/foo.feature",
             generateTest = false,
             hasScenarioRunner = false,
+            hasBeforeScenario = false,
+            hasAfterScenario = false,
             steps = emptyList(),
             rowClasses = emptyList(),
         )
@@ -122,6 +128,8 @@ class CodeGeneratorTest {
             featurePath = "features/login.feature",
             generateTest = true,
             hasScenarioRunner = false,
+            hasBeforeScenario = false,
+            hasAfterScenario = false,
             steps = emptyList(),
             rowClasses = emptyList(),
         )
@@ -141,6 +149,8 @@ class CodeGeneratorTest {
             featurePath = "features/login.feature",
             generateTest = true,
             hasScenarioRunner = true,
+            hasBeforeScenario = false,
+            hasAfterScenario = false,
             steps = emptyList(),
             rowClasses = emptyList(),
         )
@@ -160,12 +170,95 @@ class CodeGeneratorTest {
             featurePath = "features/login.feature",
             generateTest = true,
             hasScenarioRunner = false,
+            hasBeforeScenario = false,
+            hasAfterScenario = false,
             steps = emptyList(),
             rowClasses = emptyList(),
         )
         val source = CodeGenerator.render(iface)
         assertFalse(source.contains("import io.mcol.behave.steps.ScenarioRunner"))
         assertFalse(source.contains("runScenario"))
+    }
+
+    @Test
+    fun `registers Before hook when hasBeforeScenario is true`() {
+        val iface = CodeGenerator.GeneratedInterface(
+            packageName = "com.example",
+            interfaceName = "LoginStepsSpec",
+            implementingClassName = "LoginSteps",
+            featurePath = "features/login.feature",
+            generateTest = true,
+            hasScenarioRunner = false,
+            hasBeforeScenario = true,
+            hasAfterScenario = false,
+            steps = emptyList(),
+            rowClasses = emptyList(),
+        )
+        val source = CodeGenerator.render(iface)
+        assertTrue(source.contains("import io.mcol.behave.steps.BeforeScenario"))
+        assertTrue(source.contains("(ctx as BeforeScenario).beforeScenario()"))
+        assertFalse(source.contains("AfterScenario"))
+    }
+
+    @Test
+    fun `registers After hook when hasAfterScenario is true`() {
+        val iface = CodeGenerator.GeneratedInterface(
+            packageName = "com.example",
+            interfaceName = "LoginStepsSpec",
+            implementingClassName = "LoginSteps",
+            featurePath = "features/login.feature",
+            generateTest = true,
+            hasScenarioRunner = false,
+            hasBeforeScenario = false,
+            hasAfterScenario = true,
+            steps = emptyList(),
+            rowClasses = emptyList(),
+        )
+        val source = CodeGenerator.render(iface)
+        assertTrue(source.contains("import io.mcol.behave.steps.AfterScenario"))
+        assertTrue(source.contains("import io.mcol.behave.steps.ScenarioInfo"))
+        assertTrue(source.contains("(ctx as AfterScenario).afterScenario(info)"))
+        assertFalse(source.contains("BeforeScenario"))
+    }
+
+    @Test
+    fun `registers both hooks when both interfaces present`() {
+        val iface = CodeGenerator.GeneratedInterface(
+            packageName = "com.example",
+            interfaceName = "LoginStepsSpec",
+            implementingClassName = "LoginSteps",
+            featurePath = "features/login.feature",
+            generateTest = true,
+            hasScenarioRunner = false,
+            hasBeforeScenario = true,
+            hasAfterScenario = true,
+            steps = emptyList(),
+            rowClasses = emptyList(),
+        )
+        val source = CodeGenerator.render(iface)
+        assertTrue(source.contains(".also { defs ->"))
+        assertTrue(source.contains("(ctx as BeforeScenario).beforeScenario()"))
+        assertTrue(source.contains("(ctx as AfterScenario).afterScenario(info)"))
+    }
+
+    @Test
+    fun `no hooks registered when neither interface present`() {
+        val iface = CodeGenerator.GeneratedInterface(
+            packageName = "com.example",
+            interfaceName = "LoginStepsSpec",
+            implementingClassName = "LoginSteps",
+            featurePath = "features/login.feature",
+            generateTest = true,
+            hasScenarioRunner = false,
+            hasBeforeScenario = false,
+            hasAfterScenario = false,
+            steps = emptyList(),
+            rowClasses = emptyList(),
+        )
+        val source = CodeGenerator.render(iface)
+        assertFalse(source.contains(".also"))
+        assertFalse(source.contains("BeforeScenario"))
+        assertFalse(source.contains("AfterScenario"))
     }
 
     @Test
@@ -177,6 +270,8 @@ class CodeGeneratorTest {
             featurePath = "features/login.feature",
             generateTest = false,
             hasScenarioRunner = false,
+            hasBeforeScenario = false,
+            hasAfterScenario = false,
             steps = emptyList(),
             rowClasses = emptyList(),
         )

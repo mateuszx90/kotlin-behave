@@ -38,6 +38,8 @@ internal object CodeGenerator {
         val featurePath: String,         // e.g. "features/login.feature"
         val generateTest: Boolean,       // when false, skip val + test class generation
         val hasScenarioRunner: Boolean,  // when true, generate per-scenario runner variant
+        val hasBeforeScenario: Boolean,  // when true, register Before hook delegating to BeforeScenario
+        val hasAfterScenario: Boolean,   // when true, register After hook delegating to AfterScenario
         val steps: List<GeneratedStep>,
         val rowClasses: List<GeneratedRowClass>,
     )
@@ -50,6 +52,13 @@ internal object CodeGenerator {
         appendLine("import io.mcol.behave.kotest.gherkin")
         if (iface.hasScenarioRunner) {
             appendLine("import io.mcol.behave.steps.ScenarioRunner")
+        }
+        if (iface.hasBeforeScenario) {
+            appendLine("import io.mcol.behave.steps.BeforeScenario")
+        }
+        if (iface.hasAfterScenario) {
+            appendLine("import io.mcol.behave.steps.AfterScenario")
+            appendLine("import io.mcol.behave.steps.ScenarioInfo")
         }
         appendLine()
 
@@ -99,7 +108,19 @@ internal object CodeGenerator {
             // Generated step definitions instance
             val baseName = iface.implementingClassName.removeSuffix("Steps")
             val stepsVarName = "generated${baseName}Steps"
-            appendLine("val $stepsVarName = ${iface.interfaceName}.steps { ${iface.implementingClassName}() }")
+            val hasHooks = iface.hasBeforeScenario || iface.hasAfterScenario
+            if (hasHooks) {
+                appendLine("val $stepsVarName = ${iface.interfaceName}.steps { ${iface.implementingClassName}() }.also { defs ->")
+                if (iface.hasBeforeScenario) {
+                    appendLine("    defs.stepBuilder.Before { ctx -> (ctx as BeforeScenario).beforeScenario() }")
+                }
+                if (iface.hasAfterScenario) {
+                    appendLine("    defs.stepBuilder.After { info: ScenarioInfo, ctx -> (ctx as AfterScenario).afterScenario(info) }")
+                }
+                appendLine("}")
+            } else {
+                appendLine("val $stepsVarName = ${iface.interfaceName}.steps { ${iface.implementingClassName}() }")
+            }
             appendLine()
 
             // Generated Kotest FreeSpec test class

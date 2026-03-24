@@ -48,10 +48,15 @@ class BehaveProcessor(
             .firstOrNull { it.name?.asString() == "generateTest" }
             ?.value as? Boolean ?: true
 
-        // Check if the class implements ScenarioRunner
-        val hasScenarioRunner = classDecl.superTypes.any { ref ->
-            ref.resolve().declaration.qualifiedName?.asString() == "io.mcol.behave.steps.ScenarioRunner"
-        }
+        // Check which lifecycle interfaces the class implements
+        val superTypeNames = classDecl.superTypes.map { ref ->
+            ref.resolve().declaration.qualifiedName?.asString()
+        }.toSet()
+        val hasScenarioRunner = "io.mcol.behave.steps.ScenarioRunner" in superTypeNames
+        val hasBeforeScenario = "io.mcol.behave.steps.BeforeScenario" in superTypeNames ||
+            "io.mcol.behave.steps.ScenarioHooks" in superTypeNames
+        val hasAfterScenario = "io.mcol.behave.steps.AfterScenario" in superTypeNames ||
+            "io.mcol.behave.steps.ScenarioHooks" in superTypeNames
 
         // Resolve feature file
         val featureDir = options["behave.featureDir"] ?: "src/commonTest/resources"
@@ -196,6 +201,8 @@ class BehaveProcessor(
             featurePath = featurePath,
             generateTest = generateTest,
             hasScenarioRunner = hasScenarioRunner,
+            hasBeforeScenario = hasBeforeScenario,
+            hasAfterScenario = hasAfterScenario,
             steps = generatedSteps,
             rowClasses = rowClasses,
         )

@@ -93,20 +93,114 @@ class TodoSteps : TodoStepsSpec {
 // Run: ./gradlew test
 ```
 
+### Lifecycle Interfaces
+
+Implement these interfaces on your Steps class — KSP detects them and generates
+the appropriate hook registration and test class wiring automatically.
+
+#### BeforeScenario / AfterScenario
+
+```kotlin
+@BehaveFeature("features/todo.feature")
+class TodoSteps : TodoStepsSpec, BeforeScenario {
+    override suspend fun beforeScenario() {
+        db.clear()
+    }
+    // ... step overrides
+}
+```
+
+```kotlin
+@BehaveFeature("features/todo.feature")
+class TodoSteps : TodoStepsSpec, AfterScenario {
+    override suspend fun afterScenario(info: ScenarioInfo) {
+        println("${info.name}: ${info.status}")
+    }
+}
+```
+
+#### ScenarioHooks (combines both with default no-ops)
+
+```kotlin
+@BehaveFeature("features/todo.feature")
+class TodoSteps : TodoStepsSpec, ScenarioHooks {
+    override suspend fun beforeScenario() { db.clear() }
+    // afterScenario has default no-op — override only what you need
+}
+```
+
+KSP generates:
+```kotlin
+val generatedTodoSteps = TodoStepsSpec.steps { TodoSteps() }.also { defs ->
+    defs.stepBuilder.Before { ctx -> (ctx as BeforeScenario).beforeScenario() }
+    defs.stepBuilder.After { info, ctx -> (ctx as AfterScenario).afterScenario(info) }
+}
+```
+
+#### ScenarioRunner (external test harness)
+
+When each scenario needs an external test environment (Compose UI, database, etc.),
+implement `ScenarioRunner`. Use Kotlin delegation (`by`) to share across tests:
+
+```kotlin
+class ComposeScenarioRunner : ScenarioRunner {
+    override fun runScenario(ctx: Any, run: () -> Unit) {
+        runComposeUiTest {
+            (ctx as HasAppRobot).app = AppRobotImpl(this)
+            run()  // executes Before hooks → Background → Steps → After hooks
+        }
+    }
+}
+
+@BehaveFeature("features/collections.feature")
+class CollectionsSteps : CollectionsStepsSpec, HasAppRobot,
+    ScenarioRunner by ComposeScenarioRunner() {
+    override lateinit var app: AppRobot
+}
+```
+
+KSP generates:
+```kotlin
+class CollectionsGherkinTest : FreeSpec({
+    gherkin("features/collections.feature", generatedCollectionsSteps) { ctx, run ->
+        (ctx as ScenarioRunner).runScenario(ctx, run)
+    }
+})
+```
+
+#### Combining all interfaces
+
+```kotlin
+@BehaveFeature("features/collections.feature")
+class CollectionsSteps : CollectionsStepsSpec, HasAppRobot,
+    ScenarioRunner by ComposeScenarioRunner(),
+    ScenarioHooks {
+    override lateinit var app: AppRobot
+
+    override suspend fun beforeScenario() { /* after ComposeUiTest setup, before Background */ }
+    override suspend fun afterScenario(info: ScenarioInfo) { /* after all steps */ }
+}
+```
+
+| Interface | Purpose | Runs |
+|-----------|---------|------|
+| `ScenarioRunner` | External test harness (Compose, DB) | Wraps entire lifecycle |
+| `BeforeScenario` | Per-scenario setup | After runner setup, before Background |
+| `AfterScenario` | Per-scenario cleanup/logging | After all steps, receives status |
+| `ScenarioHooks` | Both hooks with default no-ops | Combines both above |
+
 ### Opting out of test generation
 
-Set `generateTest = false` when you need custom wiring — hooks, custom parameter types,
+Set `generateTest = false` when you need fully manual wiring — custom parameter types
 or tag filtering:
 
 ```kotlin
 @BehaveFeature("features/todo.feature", generateTest = false)
 class TodoSteps : TodoStepsSpec { /* ... */ }
 
-// Manual wiring with hooks
-val todoSteps = steps({ TodoSteps() }) {
-    Before { ctx -> ctx.db = createDatabase() }
-    Given("the todo list is empty") { ctx.givenTheTodoListIsEmpty() }
-    // ...
+// Manual wiring with custom types
+val todoSteps = TodoStepsSpec.steps { TodoSteps() }.also { defs ->
+    defs.stepBuilder.parameterType<Priority>("priority", "\\S+") { Priority.valueOf(it) }
 }
 
 // Manual test class with tag filtering

@@ -163,18 +163,33 @@ class TodoSteps : TodoStepsSpec {
 ./gradlew test
 ```
 
-No manual `val` or test class needed. If you need custom wiring (hooks, custom types,
-tag filtering), set `generateTest = false`:
+No manual `val` or test class needed. Add lifecycle hooks, scenario runners, or
+both — all via interfaces on the Steps class:
+
+```kotlin
+// Hooks: implement BeforeScenario, AfterScenario, or ScenarioHooks (both)
+@BehaveFeature("features/todo.feature")
+class TodoSteps : TodoStepsSpec, ScenarioHooks {
+    override suspend fun beforeScenario() { db.clear() }
+    override suspend fun afterScenario(info: ScenarioInfo) { log(info.status) }
+    // ... step overrides
+}
+
+// Compose UI test: ScenarioRunner wraps each scenario in a test harness
+@BehaveFeature("features/collections.feature")
+class CollectionsSteps : CollectionsStepsSpec, HasAppRobot,
+    ScenarioRunner by ComposeScenarioRunner() {
+    override lateinit var app: AppRobot
+    // ... step overrides only
+}
+```
+
+Set `generateTest = false` only when you need fully manual wiring (custom types,
+tag filtering):
 
 ```kotlin
 @BehaveFeature("features/todo.feature", generateTest = false)
 class TodoSteps : TodoStepsSpec { /* ... */ }
-
-// Manual wiring with hooks
-val todoStepsWithHooks = steps({ TodoSteps() }) {
-    Before { ctx -> ctx.db = createDatabase() }
-    // step registrations...
-}
 ```
 
 See [KSP documentation](docs/ksp.md) for all annotation options, type mappings, and
