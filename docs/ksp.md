@@ -40,14 +40,12 @@ dependencies {
 
 ```
 features/todo.feature         ← you write this
-    ↓ KSP reads at build time
-TodoStepsSpec.kt              ← generated interface (don't edit)
+    ↓ KSP reads at build time and generates:
+TodoStepsSpec.kt              ← interface + val + test class (don't edit)
     ↓ you implement
-TodoSteps.kt                  ← @BehaveFeature class
-    ↓ register
-val generatedTodoSteps = TodoStepsSpec.steps { TodoSteps() }
-    ↓ use in test
-TodoGherkinTest.kt            ← kotest FreeSpec
+TodoSteps.kt                  ← @BehaveFeature class (only file you write)
+    ↓ run
+./gradlew test                ← generated test class runs automatically
 ```
 
 ## @BehaveFeature
@@ -63,7 +61,61 @@ class TodoSteps : TodoStepsSpec {
 
 The `path` is relative to the `behave.featureDir` KSP option.
 
-## Generated Interface
+### Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `path` | (required) | Path to `.feature` file, relative to `behave.featureDir` |
+| `generateTest` | `true` | When true, KSP also generates a `val` and a Kotest test class |
+
+## Generated Output
+
+By default, KSP generates three things from a single `@BehaveFeature` annotation:
+
+| Generated | What it is |
+|-----------|------------|
+| `TodoStepsSpec` | Interface with one `suspend fun` per unique step |
+| `val generatedTodoSteps` | `StepDefinitions` instance wired to your class |
+| `class TodoGherkinTest` | Kotest `FreeSpec` that runs all scenarios |
+
+The user only writes the `@BehaveFeature` class. Everything else is generated:
+
+```kotlin
+// You write ONLY this:
+@BehaveFeature("features/todo.feature")
+class TodoSteps : TodoStepsSpec {
+    override suspend fun givenTheTodoListIsEmpty() { /* ... */ }
+    override suspend fun whenIAddATodo(string: String) { /* ... */ }
+    override suspend fun thenTheTodoIsDisplayed(string: String) { /* ... */ }
+}
+
+// KSP generates: TodoStepsSpec interface, generatedTodoSteps val, TodoGherkinTest class
+// Run: ./gradlew test
+```
+
+### Opting out of test generation
+
+Set `generateTest = false` when you need custom wiring — hooks, custom parameter types,
+or tag filtering:
+
+```kotlin
+@BehaveFeature("features/todo.feature", generateTest = false)
+class TodoSteps : TodoStepsSpec { /* ... */ }
+
+// Manual wiring with hooks
+val todoSteps = steps({ TodoSteps() }) {
+    Before { ctx -> ctx.db = createDatabase() }
+    Given("the todo list is empty") { ctx.givenTheTodoListIsEmpty() }
+    // ...
+}
+
+// Manual test class with tag filtering
+class TodoSmokeTest : FreeSpec({
+    gherkin("features/todo.feature", todoSteps, tags = "@smoke")
+})
+```
+
+## Generated Interface Details
 
 Given this feature file:
 
@@ -111,6 +163,12 @@ interface TodoStepsSpec {
             }
     }
 }
+
+val generatedTodoSteps = TodoStepsSpec.steps { TodoSteps() }
+
+class TodoGherkinTest : FreeSpec({
+    gherkin("features/todo.feature", generatedTodoSteps)
+})
 ```
 
 ## Auto-Detected Parameter Types

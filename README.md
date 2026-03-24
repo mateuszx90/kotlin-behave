@@ -137,7 +137,7 @@ Feature: Todo list
     Then the todo "Buy groceries" is displayed
 ```
 
-**2. Annotate your class — KSP generates `TodoStepsSpec`:**
+**2. Annotate your class — KSP generates everything else:**
 
 ```kotlin
 @BehaveFeature("features/todo.feature")
@@ -150,16 +150,31 @@ class TodoSteps : TodoStepsSpec {
         check(string in todos)
     }
 }
-
-val generatedTodoSteps = TodoStepsSpec.steps { TodoSteps() }
 ```
 
-**3. Wire to Kotest:**
+**That's it.** KSP generates:
+- `TodoStepsSpec` — interface with one method per unique step
+- `val generatedTodoSteps` — step definitions instance wired to your class
+- `class TodoGherkinTest` — Kotest FreeSpec test class
+
+**3. Run tests:**
+
+```bash
+./gradlew test
+```
+
+No manual `val` or test class needed. If you need custom wiring (hooks, custom types,
+tag filtering), set `generateTest = false`:
 
 ```kotlin
-class TodoGherkinTest : FreeSpec({
-    gherkin("features/todo.feature", generatedTodoSteps)
-})
+@BehaveFeature("features/todo.feature", generateTest = false)
+class TodoSteps : TodoStepsSpec { /* ... */ }
+
+// Manual wiring with hooks
+val todoStepsWithHooks = steps({ TodoSteps() }) {
+    Before { ctx -> ctx.db = createDatabase() }
+    // step registrations...
+}
 ```
 
 See [KSP documentation](docs/ksp.md) for all annotation options, type mappings, and
