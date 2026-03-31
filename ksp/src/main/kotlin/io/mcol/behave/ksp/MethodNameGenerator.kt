@@ -4,7 +4,7 @@ package io.mcol.behave.ksp
  * Generates camelCase method names from Gherkin step text.
  *
  * Rules:
- * 1. Keyword (Given/When/Then/And/But) is kept as a lowercase prefix followed by capitalised words
+ * 1. Keyword (Given/When/Then/And/But) is NOT included — method names are keyword-agnostic
  * 2. {placeholder} tokens are stripped from the name
  * 3. <variable> tokens are stripped from the name
  * 4. Trailing colon is stripped
@@ -12,7 +12,6 @@ package io.mcol.behave.ksp
  * 6. Collisions get numeric suffix: name0, name1, ...
  */
 internal object MethodNameGenerator {
-
     private val QUOTED_LITERAL_REGEX = Regex("\"[^\"]*\"")
     private val PLACEHOLDER_REGEX = Regex("\\{[^}]+}")
     private val VARIABLE_REGEX = Regex("<[^>]+>")
@@ -21,10 +20,13 @@ internal object MethodNameGenerator {
     private val NON_ALNUM = Regex("[^a-zA-Z0-9]+")
 
     /**
-     * Generate a method name from a keyword and step text.
+     * Generate a method name from step text (keyword is ignored).
      * Does not handle collision — call [resolveCollisions] after generating all names.
      */
-    fun generate(keyword: String, text: String): String {
+    fun generate(
+        keyword: String,
+        text: String,
+    ): String {
         // Strip quoted literals ("value"), placeholders, and outline variables
         var clean = text
         clean = QUOTED_LITERAL_REGEX.replace(clean, " ")
@@ -36,12 +38,13 @@ internal object MethodNameGenerator {
         clean = clean.trimEnd(':')
         // Split into words
         val words = NON_ALNUM.split(clean).filter { it.isNotBlank() }
+        if (words.isEmpty()) return "step"
 
-        // keyword + remaining words in camelCase
-        val allWords = listOf(keyword) + words
-        return allWords.mapIndexed { i, w ->
-            if (i == 0) w.lowercase() else w.replaceFirstChar { it.uppercase() }
-        }.joinToString("")
+        // camelCase without keyword prefix
+        return words
+            .mapIndexed { i, w ->
+                if (i == 0) w.replaceFirstChar { it.lowercase() } else w.replaceFirstChar { it.uppercase() }
+            }.joinToString("")
     }
 
     /**

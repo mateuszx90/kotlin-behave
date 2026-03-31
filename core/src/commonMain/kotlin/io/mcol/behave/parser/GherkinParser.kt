@@ -29,8 +29,7 @@ object GherkinParser {
         var tableHeaders: List<String> = emptyList()
         var tableRows: MutableList<Map<String, String?>> = mutableListOf()
 
-        fun parseTags(line: String): Set<String> =
-            line.trim().split("\\s+".toRegex()).filter { it.startsWith("@") }.toSet()
+        fun parseTags(line: String): Set<String> = line.trim().split("\\s+".toRegex()).filter { it.startsWith("@") }.toSet()
 
         fun flushPendingStep() {
             pendingStep?.let { step ->
@@ -60,9 +59,8 @@ object GherkinParser {
             inExamples = false
         }
 
-        fun parseTableRow(line: String): List<String> =
-            line.trim().removePrefix("|").removeSuffix("|")
-                .split("|").map { it.trim() }
+        fun parseTableRow(line: String): List<String> = line.trim().removePrefix("|").removeSuffix("|")
+            .split("|").map { it.trim() }
 
         for (line in lines) {
             when {
@@ -117,8 +115,11 @@ object GherkinParser {
                         pendingStep = Step(kwText.first, kwText.second)
                     } else if (line.startsWith("|") && pendingStep != null && !inExamples) {
                         val cells = parseTableRow(line)
-                        if (tableHeaders.isEmpty()) tableHeaders = cells
-                        else tableRows.add(tableHeaders.zip(cells.map { if (it == "null") null else it }).toMap())
+                        if (tableHeaders.isEmpty()) {
+                            tableHeaders = cells
+                        } else {
+                            tableRows.add(tableHeaders.zip(cells.map { if (it == "null") null else it }).toMap())
+                        }
                     }
                 }
             }
@@ -131,10 +132,10 @@ object GherkinParser {
     internal fun stepKeyword(line: String): Pair<Keyword, String>? {
         val prefixes = listOf(
             "Given" to Keyword.GIVEN,
-            "When"  to Keyword.WHEN,
-            "Then"  to Keyword.THEN,
-            "And"   to Keyword.AND,
-            "But"   to Keyword.BUT,
+            "When" to Keyword.WHEN,
+            "Then" to Keyword.THEN,
+            "And" to Keyword.AND,
+            "But" to Keyword.BUT,
         )
         for ((prefix, kw) in prefixes) {
             if (line.startsWith("$prefix ")) return kw to line.removePrefix("$prefix ").trim()

@@ -7,8 +7,7 @@
  * - All five Gherkin keywords: `Given`, `When`, `Then`, `And`, `But`
  *
  * Key points:
- * - `And`/`But` keep their own prefix (`andXxx`, `butXxx`) — they are NOT
- *   resolved to the preceding Given/When/Then keyword.
+ * - `And`/`But` steps produce method names without keyword prefix, same as Given/When/Then.
  * - Background steps appear in the same interface as scenario steps.
  * - All methods are `suspend fun` — step execution is coroutine-based.
  * - Steps with identical normalised text across scenarios are deduplicated.
@@ -24,30 +23,29 @@ class BasicSteps : BasicStepsSpec {
     private var loggedIn = false
     private var onLoginPage = false
 
-    override suspend fun givenTheAppIsLaunched() {
+    override suspend fun theAppIsLaunched() {
         appLaunched = true
     }
 
-    override suspend fun givenIAmOnTheLoginPage() {
+    override suspend fun iAmOnTheLoginPage() {
         check(appLaunched)
         onLoginPage = true
     }
 
-    override suspend fun whenIEnterValidCredentials() {
+    override suspend fun iEnterValidCredentials() {
         check(onLoginPage)
     }
 
-    override suspend fun andITapTheLoginButton() {
+    override suspend fun iTapTheLoginButton() {
         loggedIn = true
         onLoginPage = false
     }
 
-    override suspend fun thenISeeTheDashboard() {
+    override suspend fun iSeeTheDashboard() {
         check(loggedIn)
     }
 
-    override suspend fun butIDoNotSeeTheLoginForm() {
+    override suspend fun iDoNotSeeTheLoginForm() {
         check(!onLoginPage)
     }
 }
-

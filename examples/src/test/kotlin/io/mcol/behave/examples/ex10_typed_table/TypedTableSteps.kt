@@ -25,9 +25,9 @@ class TypedTableSteps : TypedTableStepsSpec {
 
     private var petCount = 0
 
-    override suspend fun givenTheFollowingPets(rows: List<GivenTheFollowingPetsRow>) {
+    override suspend fun theFollowingPets(rows: List<TheFollowingPetsRow>) {
         petCount = rows.size
-        // Row has: pet (composite), age (mapped), and no unmapped columns
+        // Row has: name, breed, age — all String
         rows.forEach { row ->
             check(row.name.isNotEmpty())
             check(row.breed.isNotEmpty())
@@ -35,8 +35,7 @@ class TypedTableSteps : TypedTableStepsSpec {
         }
     }
 
-    override suspend fun thenPetsAreRegistered(int: Int) {
+    override suspend fun petsAreRegistered(int: Int) {
         assertEquals(int, petCount)
     }
 }
-

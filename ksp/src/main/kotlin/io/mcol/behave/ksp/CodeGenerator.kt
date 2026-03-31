@@ -4,22 +4,21 @@ package io.mcol.behave.ksp
  * Generates Kotlin source text for the step definitions interface.
  */
 internal object CodeGenerator {
-
     data class TypeMapping(
-        val placeholder: String,   // e.g. "label" for {label}, or "" for field-based
-        val typeName: String,      // fully qualified type name
-        val fields: List<String>,  // field names for multi-field grouping; empty for placeholder mode
+        val placeholder: String, // e.g. "label" for {label}, or "" for field-based
+        val typeName: String, // fully qualified type name
+        val fields: List<String>, // field names for multi-field grouping; empty for placeholder mode
     )
 
     data class StepParam(
         val name: String,
-        val typeName: String,  // Kotlin type name (e.g. "String", "Int", "List<CatRow>")
+        val typeName: String, // Kotlin type name (e.g. "String", "Int", "List<CatRow>")
     )
 
     data class GeneratedStep(
         val methodName: String,
         val params: List<StepParam>,
-        val stepExpression: String,  // regex-escaped pattern for the companion
+        val stepExpression: String, // regex-escaped pattern for the companion
         val originalKeyword: String,
         val originalText: String,
         val castParams: Map<Int, String> = emptyMap(), // param index → original narrow type (e.g. "Int")
@@ -28,18 +27,18 @@ internal object CodeGenerator {
     data class GeneratedRowClass(
         val name: String,
         val params: List<StepParam>,
-        val shouldEmit: Boolean = true,  // false for user-defined types that already exist
+        val shouldEmit: Boolean = true, // false for user-defined types that already exist
     )
 
     data class GeneratedInterface(
         val packageName: String,
-        val interfaceName: String,      // e.g. "LoginStepsSpec"
+        val interfaceName: String, // e.g. "LoginStepsSpec"
         val implementingClassName: String, // e.g. "LoginSteps"
-        val featurePath: String,         // e.g. "features/login.feature"
-        val generateTest: Boolean,       // when false, skip val + test class generation
-        val hasScenarioRunner: Boolean,  // when true, generate per-scenario runner variant
-        val hasBeforeScenario: Boolean,  // when true, register Before hook delegating to BeforeScenario
-        val hasAfterScenario: Boolean,   // when true, register After hook delegating to AfterScenario
+        val featurePath: String, // e.g. "features/login.feature"
+        val generateTest: Boolean, // when false, skip val + test class generation
+        val hasScenarioRunner: Boolean, // when true, generate per-scenario runner variant
+        val hasBeforeScenario: Boolean, // when true, register Before hook delegating to BeforeScenario
+        val hasAfterScenario: Boolean, // when true, register After hook delegating to AfterScenario
         val steps: List<GeneratedStep>,
         val rowClasses: List<GeneratedRowClass>,
     )
@@ -85,7 +84,9 @@ internal object CodeGenerator {
         }
 
         appendLine("    companion object {")
-        appendLine("        fun steps(factory: () -> ${iface.interfaceName}): io.mcol.behave.steps.StepDefinitions<${iface.interfaceName}> =")
+        appendLine(
+            "        fun steps(factory: () -> ${iface.interfaceName}): io.mcol.behave.steps.StepDefinitions<${iface.interfaceName}> =",
+        )
         appendLine("            io.mcol.behave.steps.steps(factory) {")
 
         for (step in iface.steps) {
@@ -156,17 +157,19 @@ internal object CodeGenerator {
             if (rowClass != null) {
                 appendLine("                    val rows = params.dataTable!!.rows.map { row ->")
                 appendLine("                        ${rowClass.name}(")
-                val assignments = rowClass.params.joinToString(",\n") { p ->
-                    val accessor = when (p.typeName) {
-                        "String" -> "row[\"${p.name}\"] ?: \"\""
-                        "Int" -> "row[\"${p.name}\"]?.toIntOrNull() ?: 0"
-                        "Long" -> "row[\"${p.name}\"]?.toLongOrNull() ?: 0L"
-                        "Double" -> "row[\"${p.name}\"]?.toDoubleOrNull() ?: 0.0"
-                        "Boolean" -> "row[\"${p.name}\"]?.toBooleanStrictOrNull() ?: false"
-                        else -> "TODO(\"map row[\\\"${p.name}\\\"] to ${p.typeName}\")"
+                val assignments =
+                    rowClass.params.joinToString(",\n") { p ->
+                        val accessor =
+                            when (p.typeName) {
+                                "String" -> "row[\"${p.name}\"] ?: \"\""
+                                "Int" -> "row[\"${p.name}\"]?.toIntOrNull() ?: 0"
+                                "Long" -> "row[\"${p.name}\"]?.toLongOrNull() ?: 0L"
+                                "Double" -> "row[\"${p.name}\"]?.toDoubleOrNull() ?: 0.0"
+                                "Boolean" -> "row[\"${p.name}\"]?.toBooleanStrictOrNull() ?: false"
+                                else -> "TODO(\"map row[\\\"${p.name}\\\"] to ${p.typeName}\")"
+                            }
+                        "                            ${p.name} = $accessor"
                     }
-                    "                            ${p.name} = $accessor"
-                }
                 appendLine(assignments)
                 appendLine("                        )")
                 appendLine("                    }")
@@ -190,20 +193,24 @@ internal object CodeGenerator {
             appendLine("                }")
         } else {
             // Inline params only — widen types for @BehaveCast and add conversion
-            val destructure = step.params.mapIndexed { i, p ->
-                val widening = if (i in step.castParams) wideningMap[step.castParams[i]] else null
-                val destructType = widening?.second ?: p.typeName
-                "p${i + 1}: $destructType"
-            }.joinToString(", ")
-            val args = step.params.mapIndexed { i, _ ->
-                val narrowType = step.castParams[i]
-                val widening = if (narrowType != null) wideningMap[narrowType] else null
-                if (widening != null) {
-                    widening.third.replace("\$p", "p${i + 1}")
-                } else {
-                    "p${i + 1}"
-                }
-            }.joinToString(", ")
+            val destructure =
+                step.params
+                    .mapIndexed { i, p ->
+                        val widening = if (i in step.castParams) wideningMap[step.castParams[i]] else null
+                        val destructType = widening?.second ?: p.typeName
+                        "p${i + 1}: $destructType"
+                    }.joinToString(", ")
+            val args =
+                step.params
+                    .mapIndexed { i, _ ->
+                        val narrowType = step.castParams[i]
+                        val widening = if (narrowType != null) wideningMap[narrowType] else null
+                        if (widening != null) {
+                            widening.third.replace("\$p", "p${i + 1}")
+                        } else {
+                            "p${i + 1}"
+                        }
+                    }.joinToString(", ")
             appendLine("                $keyword(\"$expr\") { ($destructure) ->")
             appendLine("                    ctx.${step.methodName}($args)")
             appendLine("                }")
@@ -252,8 +259,14 @@ internal object CodeGenerator {
         var inPlaceholder = false
         for (ch in text) {
             when {
-                ch == '{' -> { inPlaceholder = true; sb.append(ch) }
-                ch == '}' -> { inPlaceholder = false; sb.append(ch) }
+                ch == '{' -> {
+                    inPlaceholder = true
+                    sb.append(ch)
+                }
+                ch == '}' -> {
+                    inPlaceholder = false
+                    sb.append(ch)
+                }
                 inPlaceholder -> sb.append(ch)
                 ch in specialChars -> sb.append("\\$ch")
                 else -> sb.append(ch)
@@ -267,8 +280,7 @@ internal object CodeGenerator {
      * Must be applied before [replaceOutlineVariables] so that quoted outline variables
      * like "<answer>" become {string} rather than "{word}".
      */
-    fun replaceQuotedLiterals(text: String): String =
-        text.replace(Regex("\"[^\"]*\""), "{string}")
+    fun replaceQuotedLiterals(text: String): String = text.replace(Regex("\"[^\"]*\""), "{string}")
 
     /**
      * Replace standalone number literals with typed placeholders.
@@ -285,27 +297,28 @@ internal object CodeGenerator {
     }
 
     /** Convert <variable> tokens in step text to {word} for the emitted step expression. */
-    fun replaceOutlineVariables(text: String): String =
-        text.replace(Regex("<([^>]+)>"), "{word}")
+    fun replaceOutlineVariables(text: String): String = text.replace(Regex("<([^>]+)>"), "{word}")
 
     /** Built-in placeholder → Kotlin type mapping. */
-    val builtinTypes = mapOf(
-        "string"  to "String",
-        "int"     to "Int",
-        "long"    to "Long",
-        "float"   to "Float",
-        "double"  to "Double",
-        "word"    to "String",
-        "boolean" to "Boolean",
-    )
+    val builtinTypes =
+        mapOf(
+            "string" to "String",
+            "int" to "Int",
+            "long" to "Long",
+            "float" to "Float",
+            "double" to "Double",
+            "word" to "String",
+            "boolean" to "Boolean",
+        )
 
     /**
      * Widening map for @BehaveCast: narrow type → (wider placeholder, wider Kotlin type, conversion expression).
      * The conversion expression uses `$p` as a placeholder for the parameter variable name.
      */
-    internal val wideningMap = mapOf(
-        "Int" to Triple("double", "Double", "\$p.toInt()"),
-        "Long" to Triple("double", "Double", "\$p.toLong()"),
-        "Float" to Triple("double", "Double", "\$p.toFloat()"),
-    )
+    internal val wideningMap =
+        mapOf(
+            "Int" to Triple("double", "Double", "\$p.toInt()"),
+            "Long" to Triple("double", "Double", "\$p.toLong()"),
+            "Float" to Triple("double", "Double", "\$p.toFloat()"),
+        )
 }

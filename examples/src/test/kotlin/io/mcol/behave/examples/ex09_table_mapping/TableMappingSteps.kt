@@ -28,50 +28,49 @@ class TableMappingSteps : TableMappingStepsSpec {
 
     private val words = mutableListOf<WordRow>()
     private val collections = mutableMapOf<String, MutableList<WordRow>>()
-    private val inventory = mutableListOf<GivenTheFollowingInventoryRow>()
+    private val inventory = mutableListOf<TheFollowingInventoryRow>()
 
     // --- Background: DataTable → List<WordRow> (full mapping, no Row class generated) ---
 
-    override suspend fun givenTheFollowingVocabulary(rows: List<WordRow>) {
+    override suspend fun theFollowingVocabulary(rows: List<WordRow>) {
         words.addAll(rows)
     }
 
-    override suspend fun thenWordsAreLoaded(int: Int) {
+    override suspend fun wordsAreLoaded(int: Int) {
         assertEquals(int, words.size)
     }
 
     // --- DataTable reusing the same WordRow type ---
 
-    override suspend fun whenIAddTheFollowingWords(rows: List<WordRow>) {
+    override suspend fun iAddTheFollowingWords(rows: List<WordRow>) {
         words.addAll(rows)
     }
 
     // --- DataTable + inline string param in the same step ---
-    // Generated: whenIAssignTheFollowingWordsTo(string: String, rows: List<WordRow>)
+    // Generated: iAssignTheFollowingWordsTo(string: String, rows: List<WordRow>)
 
-    override suspend fun givenACollectionNamed(string: String) {
+    override suspend fun aCollectionNamed(string: String) {
         collections[string] = mutableListOf()
     }
 
-    override suspend fun whenIAssignTheFollowingWordsTo(string: String, rows: List<WordRow>) {
+    override suspend fun iAssignTheFollowingWordsTo(string: String, rows: List<WordRow>) {
         collections.getOrPut(string) { mutableListOf() }.addAll(rows)
     }
 
-    override suspend fun thenTheCollectionHasWords(string: String, int: Int) {
+    override suspend fun theCollectionHasWords(string: String, int: Int) {
         assertEquals(int, collections[string]?.size ?: 0)
     }
 
-    // --- Unmapped DataTable → auto-generated GivenTheFollowingInventoryRow (all String) ---
+    // --- Unmapped DataTable → auto-generated TheFollowingInventoryRow (all String) ---
 
-    override suspend fun givenTheFollowingInventory(rows: List<GivenTheFollowingInventoryRow>) {
+    override suspend fun theFollowingInventory(rows: List<TheFollowingInventoryRow>) {
         inventory.addAll(rows)
     }
 
-    override suspend fun thenTheTotalInventoryValueIs(double: Double) {
+    override suspend fun theTotalInventoryValueIs(double: Double) {
         val total = inventory.sumOf {
             it.quantity.toInt() * it.price.toDouble()
         }
         assertEquals(double, total, 0.01)
     }
 }
-

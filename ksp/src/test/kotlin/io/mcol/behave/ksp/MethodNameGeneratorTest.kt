@@ -4,61 +4,60 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class MethodNameGeneratorTest {
-
     @Test
-    fun `generates basic camelCase method name`() {
-        assertEquals("givenIAmOnTheLoginPage", MethodNameGenerator.generate("Given", "I am on the login page"))
+    fun `generates basic camelCase method name without keyword`() {
+        assertEquals("iAmOnTheLoginPage", MethodNameGenerator.generate("Given", "I am on the login page"))
     }
 
     @Test
     fun `strips placeholder tokens from name`() {
-        assertEquals("whenIEnterAsUsername", MethodNameGenerator.generate("When", "I enter {string} as username"))
+        assertEquals("iEnterAsUsername", MethodNameGenerator.generate("When", "I enter {string} as username"))
     }
 
     @Test
     fun `strips variable tokens from name`() {
-        assertEquals("givenIAmLoggedInAs", MethodNameGenerator.generate("Given", "I am logged in as <role>"))
+        assertEquals("iAmLoggedInAs", MethodNameGenerator.generate("Given", "I am logged in as <role>"))
     }
 
     @Test
     fun `strips trailing colon`() {
-        assertEquals("givenTheFollowingCats", MethodNameGenerator.generate("Given", "the following cats:"))
+        assertEquals("theFollowingCats", MethodNameGenerator.generate("Given", "the following cats:"))
     }
 
     @Test
     fun `handles int placeholder stripped`() {
-        assertEquals("thenIHaveItems", MethodNameGenerator.generate("Then", "I have {int} items"))
+        assertEquals("iHaveItems", MethodNameGenerator.generate("Then", "I have {int} items"))
     }
 
     @Test
     fun `strips quoted literal strings from method name`() {
-        assertEquals("thenISeeTheQuestionWord", MethodNameGenerator.generate("Then", "I see the question word \"pies\""))
+        assertEquals("iSeeTheQuestionWord", MethodNameGenerator.generate("Then", "I see the question word \"pies\""))
     }
 
     @Test
     fun `strips quoted outline variable from method name`() {
-        assertEquals("whenITypeInTheAnswerField", MethodNameGenerator.generate("When", "I type \"<answer>\" in the answer field"))
+        assertEquals("iTypeInTheAnswerField", MethodNameGenerator.generate("When", "I type \"<answer>\" in the answer field"))
     }
 
     @Test
     fun `strips quoted literal for tap step`() {
-        assertEquals("whenITap", MethodNameGenerator.generate("When", "I tap \"Cancel\""))
+        assertEquals("iTap", MethodNameGenerator.generate("When", "I tap \"Cancel\""))
     }
 
     @Test
-    fun `handles And keyword`() {
-        assertEquals("andIClickTheButton", MethodNameGenerator.generate("And", "I click the {label} button"))
-    }
-
-    @Test
-    fun `handles But keyword`() {
-        assertEquals("butIDoNotSeeErrors", MethodNameGenerator.generate("But", "I do not see errors"))
+    fun `keyword is ignored in method name`() {
+        val given = MethodNameGenerator.generate("Given", "I click the button")
+        val whenResult = MethodNameGenerator.generate("When", "I click the button")
+        val thenResult = MethodNameGenerator.generate("Then", "I click the button")
+        assertEquals("iClickTheButton", given)
+        assertEquals(given, whenResult, "Same text with different keywords should produce same method name")
+        assertEquals(given, thenResult)
     }
 
     @Test
     fun `strips standalone number literals from method name`() {
         assertEquals(
-            "whenICreateARecipeWithPortionsNamed",
+            "iCreateARecipeWithPortionsNamed",
             MethodNameGenerator.generate("When", """I create a recipe with 4 portions named "Pasta""""),
         )
     }
@@ -66,43 +65,46 @@ class MethodNameGeneratorTest {
     @Test
     fun `does not strip numbers embedded in words from method name`() {
         assertEquals(
-            "whenIVisitStep2goWebsite",
+            "iVisitStep2goWebsite",
             MethodNameGenerator.generate("When", "I visit step2go website"),
         )
     }
 
     @Test
     fun `collision resolution adds numeric suffixes`() {
-        val steps = listOf(
-            "Given" to "I have {int} items",
-            "Given" to "I have {string} items",
-        )
+        val steps =
+            listOf(
+                "Given" to "I have {int} items",
+                "Given" to "I have {string} items",
+            )
         val names = MethodNameGenerator.resolveCollisions(steps)
-        assertEquals("givenIHaveItems0", names[0])
-        assertEquals("givenIHaveItems1", names[1])
+        assertEquals("iHaveItems0", names[0])
+        assertEquals("iHaveItems1", names[1])
     }
 
     @Test
-    fun `no collision when names differ`() {
-        val steps = listOf(
-            "Given" to "I am on the login page",
-            "When" to "I click login",
-        )
+    fun `same text different keywords produces same name`() {
+        val steps =
+            listOf(
+                "Given" to "I am on the login page",
+                "When" to "I am on the login page",
+            )
         val names = MethodNameGenerator.resolveCollisions(steps)
-        assertEquals("givenIAmOnTheLoginPage", names[0])
-        assertEquals("whenIClickLogin", names[1])
+        assertEquals("iAmOnTheLoginPage0", names[0])
+        assertEquals("iAmOnTheLoginPage1", names[1])
     }
 
     @Test
     fun `non-collision steps are not suffixed`() {
-        val steps = listOf(
-            "Given" to "step A",
-            "Given" to "step A",
-            "Given" to "step B",
-        )
+        val steps =
+            listOf(
+                "Given" to "step A",
+                "Given" to "step A",
+                "Given" to "step B",
+            )
         val names = MethodNameGenerator.resolveCollisions(steps)
-        assertEquals("givenStepA0", names[0])
-        assertEquals("givenStepA1", names[1])
-        assertEquals("givenStepB", names[2])
+        assertEquals("stepA0", names[0])
+        assertEquals("stepA1", names[1])
+        assertEquals("stepB", names[2])
     }
 }

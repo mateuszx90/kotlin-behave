@@ -1,30 +1,33 @@
 package io.mcol.behave.steps
 
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
-import kotlinx.coroutines.test.runTest
 
 class StepBuilderTest {
-
-    class Ctx { var value: Int = 0 }
+    class Ctx {
+        var value: Int = 0
+    }
 
     // region step registration ----------------------------------------------
 
     @Test
     fun `registered Given step is found by matching text`() = runTest {
-        val defs = steps(::Ctx) {
-            Given("I have {int} words") { (n: Int) -> ctx.value = n }
-        }
+        val defs =
+            steps(::Ctx) {
+                Given("I have {int} words") { (n: Int) -> ctx.value = n }
+            }
         assertNotNull(defs.find("I have 5 words"))
     }
 
     @Test
     fun `step lambda receives converted params and updates ctx`() = runTest {
-        val defs = steps(::Ctx) {
-            Given("I have {int} words") { (n: Int) -> ctx.value = n }
-        }
+        val defs =
+            steps(::Ctx) {
+                Given("I have {int} words") { (n: Int) -> ctx.value = n }
+            }
         defs.stepBuilder.ctx = Ctx()
         defs.find("I have 7 words")!!.invoke()
         assertEquals(7, defs.stepBuilder.ctx.value)
@@ -32,9 +35,10 @@ class StepBuilderTest {
 
     @Test
     fun `ctx is replaced per scenario`() = runTest {
-        val defs = steps(::Ctx) {
-            Given("set {int}") { (n: Int) -> ctx.value = n }
-        }
+        val defs =
+            steps(::Ctx) {
+                Given("set {int}") { (n: Int) -> ctx.value = n }
+            }
         defs.stepBuilder.ctx = Ctx().also { it.value = 99 }
         val fresh = defs.factory()
         defs.stepBuilder.ctx = fresh
@@ -43,9 +47,10 @@ class StepBuilderTest {
 
     @Test
     fun `unregistered step text returns null`() = runTest {
-        val defs = steps(::Ctx) {
-            Given("I have {int} words") { }
-        }
+        val defs =
+            steps(::Ctx) {
+                Given("I have {int} words") { }
+            }
         assertEquals(null, defs.find("unknown step"))
     }
 
@@ -75,9 +80,10 @@ class StepBuilderTest {
 
     @Test
     fun `pending throws PendingException`() = runTest {
-        val defs = steps(::Ctx) {
-            Given("not done yet") { pending() }
-        }
+        val defs =
+            steps(::Ctx) {
+                Given("not done yet") { pending() }
+            }
         assertFailsWith<PendingException> {
             defs.find("not done yet")!!.invoke()
         }

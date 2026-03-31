@@ -38,6 +38,7 @@ class GherkinRunner<C>(
     suspend fun run(feature: Feature): RunResult {
         val results = feature.scenarios.map { scenario ->
             if (tagFilter != null && !tagFilter!!.matches(scenario.tags)) {
+                stepDefinitions.stepBuilder.ctx = stepDefinitions.factory()
                 val info = ScenarioInfo(scenario.name, scenario.tags, ScenarioStatus.Skipped)
                 runAfterHooksForSkipped(info)
                 ScenarioResult(scenario.name, passed = false, skipped = true)
@@ -60,8 +61,9 @@ class GherkinRunner<C>(
     ): RunResult {
         val results = feature.scenarios.map { scenario ->
             if (tagFilter != null && !tagFilter!!.matches(scenario.tags)) {
-                val info = ScenarioInfo(scenario.name, scenario.tags, ScenarioStatus.Skipped)
-                runSuspendBlocking { runAfterHooksForSkipped(info) }
+                // Do not run after hooks: runScenario was never called, so the test environment
+                // (e.g. Compose UI, database) was never set up. After hooks would run against
+                // an uninitialised ctx.
                 ScenarioResult(scenario.name, passed = false, skipped = true)
             } else {
                 val ctx = stepDefinitions.factory()
@@ -78,18 +80,20 @@ class GherkinRunner<C>(
 
     private suspend fun runAfterHooksForSkipped(info: ScenarioInfo) {
         for (hook in stepDefinitions.stepBuilder.afterHooks.asReversed()) {
-            try { dispatchHook(hook, info, stepDefinitions.stepBuilder.ctx) } catch (_: Throwable) { }
+            try {
+                dispatchHook(hook, info, stepDefinitions.stepBuilder.ctx)
+            } catch (_: Throwable) { }
         }
     }
 
     internal suspend fun executeScenario(feature: Feature, scenario: Scenario): ScenarioResult {
         val beforeHooks = stepDefinitions.stepBuilder.beforeHooks
-        val afterHooks  = stepDefinitions.stepBuilder.afterHooks
+        val afterHooks = stepDefinitions.stepBuilder.afterHooks
         val scenarioInfoBefore = ScenarioInfo(scenario.name, scenario.tags, ScenarioStatus.Passed)
 
         var stepError: Throwable? = null
-        var failedStep: String?   = null
-        var isPending             = false
+        var failedStep: String? = null
+        var isPending = false
 
         for (hook in beforeHooks) {
             if (stepError != null) break
@@ -111,37 +115,47 @@ class GherkinRunner<C>(
                     null
                 }
                 fn?.let {
-                    try { it() }
-                    catch (e: PendingException) { isPending = true; failedStep = step.text }
-                    catch (e: Throwable)        { stepError = e; failedStep = step.text }
+                    try {
+                        it()
+                    } catch (e: PendingException) {
+                        isPending = true
+                        failedStep = step.text
+                    } catch (e: Throwable) {
+                        stepError = e
+                        failedStep = step.text
+                    }
                 }
             }
         }
 
         val finalStatus = when {
-            isPending         -> ScenarioStatus.Pending
+            isPending -> ScenarioStatus.Pending
             stepError != null -> ScenarioStatus.Failed
-            else              -> ScenarioStatus.Passed
+            else -> ScenarioStatus.Passed
         }
         val scenarioInfoAfter = ScenarioInfo(scenario.name, scenario.tags, finalStatus)
 
         for (hook in afterHooks.asReversed()) {
-            try { dispatchHook(hook, scenarioInfoAfter, stepDefinitions.stepBuilder.ctx) }
-            catch (e: Throwable) {
-                if (stepError == null) { stepError = e; failedStep = "<After hook>" }
+            try {
+                dispatchHook(hook, scenarioInfoAfter, stepDefinitions.stepBuilder.ctx)
+            } catch (e: Throwable) {
+                if (stepError == null) {
+                    stepError = e
+                    failedStep = "<After hook>"
+                }
             }
         }
 
         return when {
-            isPending         -> ScenarioResult(scenario.name, passed = false, pending = true, failedStep = failedStep)
+            isPending -> ScenarioResult(scenario.name, passed = false, pending = true, failedStep = failedStep)
             stepError != null -> ScenarioResult(scenario.name, passed = false, error = stepError, failedStep = failedStep)
-            else              -> ScenarioResult(scenario.name, passed = true)
+            else -> ScenarioResult(scenario.name, passed = true)
         }
     }
 
     private suspend fun <C> dispatchHook(hook: Hook<C>, info: ScenarioInfo, ctx: C) {
         when (hook) {
-            is Hook.WithCtx            -> hook.block(ctx)
+            is Hook.WithCtx -> hook.block(ctx)
             is Hook.WithScenarioAndCtx -> hook.block(info, ctx)
         }
     }
@@ -151,13 +165,13 @@ class GherkinRunner<C>(
         for (r in results) {
             when {
                 r.skipped -> println("  - Scenario: ${r.name}  [SKIPPED]")
-                r.passed  -> println("  ✓ Scenario: ${r.name}")
+                r.passed -> println("  ✓ Scenario: ${r.name}")
                 r.pending -> println("  ~ Scenario: ${r.name}\n      Step: ${r.failedStep}  [PENDING]")
-                else      -> println("  ✗ Scenario: ${r.name}\n      Step: ${r.failedStep}\n      ${r.error?.message}")
+                else -> println("  ✗ Scenario: ${r.name}\n      Step: ${r.failedStep}\n      ${r.error?.message}")
             }
         }
-        val passed  = results.count { it.passed }
-        val failed  = results.count { !it.passed && !it.pending && !it.skipped }
+        val passed = results.count { it.passed }
+        val failed = results.count { !it.passed && !it.pending && !it.skipped }
         val pending = results.count { it.pending }
         val skipped = results.count { it.skipped }
         println("\n$passed passed, $failed failed, $pending pending, $skipped skipped\n")

@@ -23,27 +23,26 @@ class PlaceholderSteps : PlaceholderStepsSpec {
     private val form = mutableMapOf<String, Any>()
 
     // "name" and "Alice" auto-detected as {string} → String
-    override suspend fun givenTheFormFieldHasValue(string0: String, string1: String) {
+    override suspend fun theFormFieldHasValue(string0: String, string1: String) {
         form[string0] = string1
     }
 
     // 25 auto-detected as {int} → Int
-    override suspend fun whenISetTheAgeTo(int: Int) {
+    override suspend fun iSetTheAgeTo(int: Int) {
         form["age"] = int
     }
 
     // 98.5 auto-detected as {double} → Double
-    override suspend fun andISetTheScoreTo(double: Double) {
+    override suspend fun iSetTheScoreTo(double: Double) {
         form["score"] = double
     }
 
-    override suspend fun thenTheFormIsValid() {
+    override suspend fun theFormIsValid() {
         check(form.isNotEmpty()) { "Form is empty" }
     }
 
     // <flag> from Scenario Outline → {word} → String
-    override suspend fun whenISetThePremiumFlagTo(flag: String) {
+    override suspend fun iSetThePremiumFlagTo(flag: String) {
         form["premium"] = flag.toBooleanStrict()
     }
 }
-

@@ -19,11 +19,11 @@ class OutlineSteps : OutlineStepsSpec {
     private var feedbackType = ""
 
     // "<answer>" is quoted → {string}, param named from variable: `answer`
-    override suspend fun whenITypeInTheAnswerField(answer: String) {
+    override suspend fun iTypeInTheAnswerField(answer: String) {
         this.answer = answer
     }
 
-    override suspend fun andISubmitTheAnswer() {
+    override suspend fun iSubmitTheAnswer() {
         feedbackType = when (answer) {
             "dog" -> "correct"
             "dogg" -> "partial"
@@ -32,8 +32,7 @@ class OutlineSteps : OutlineStepsSpec {
     }
 
     // <type> is unquoted → {word}, param named from variable: `type`
-    override suspend fun thenISeeFeedback(type: String) {
+    override suspend fun iSeeFeedback(type: String) {
         check(feedbackType == type) { "Expected '$type' feedback, got '$feedbackType'" }
     }
 }
-

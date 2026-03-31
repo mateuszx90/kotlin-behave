@@ -27,53 +27,53 @@ class IntegrationSteps : IntegrationStepsSpec {
     private val todos = mutableListOf<Todo>()
 
     // Background
-    override suspend fun givenTheTodoListIsEmpty() {
+    override suspend fun theTodoListIsEmpty() {
         todos.clear()
     }
 
     // String param from quoted literal
-    override suspend fun whenIAddATodo(string: String) {
+    override suspend fun iAddATodo(string: String) {
         todos.add(Todo(title = string))
     }
 
-    override suspend fun thenTheTodoIsDisplayed(string: String) {
+    override suspend fun theTodoIsDisplayed(string: String) {
         check(todos.any { it.title == string }) { "Todo '$string' not found" }
     }
 
     // Auto-detected number from "1 todo"
-    override suspend fun andTodoIsDisplayed(int: Int) {
+    override suspend fun todoIsDisplayed(int: Int) {
         assertEquals(int, todos.size)
     }
 
-    override suspend fun givenIHaveATodo(string: String) {
+    override suspend fun iHaveATodo(string: String) {
         todos.add(Todo(title = string))
     }
 
-    override suspend fun whenICompleteTheTodo(string: String) {
+    override suspend fun iCompleteTheTodo(string: String) {
         todos.first { it.title == string }.done = true
     }
 
-    override suspend fun thenTheTodoIsMarkedAsDone(string: String) {
+    override suspend fun theTodoIsMarkedAsDone(string: String) {
         check(todos.first { it.title == string }.done)
     }
 
     // Scenario Outline: <priority> → {word}
-    override suspend fun whenIAddATodoWithPriority(string: String, priority: String) {
+    override suspend fun iAddATodoWithPriority(string: String, priority: String) {
         todos.add(Todo(title = string, priority = priority))
     }
 
-    override suspend fun thenTheLastTodoShowsPriority(priority: String) {
+    override suspend fun theLastTodoShowsPriority(priority: String) {
         assertEquals(priority, todos.last().priority)
     }
 
     // DataTable with auto-generated Row class
-    override suspend fun whenIImportTheFollowingTodos(rows: List<WhenIImportTheFollowingTodosRow>) {
+    override suspend fun iImportTheFollowingTodos(rows: List<IImportTheFollowingTodosRow>) {
         rows.forEach { row ->
             todos.add(Todo(title = row.title, priority = row.priority))
         }
     }
 
-    override suspend fun thenTodosAreDisplayed(int: Int) {
+    override suspend fun todosAreDisplayed(int: Int) {
         assertEquals(int, todos.size)
     }
 }
