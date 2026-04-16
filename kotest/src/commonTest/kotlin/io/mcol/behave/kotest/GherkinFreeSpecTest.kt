@@ -1,7 +1,10 @@
 package io.mcol.behave.kotest
 
 import io.kotest.core.spec.style.FreeSpec
+import io.mcol.behave.generated.GeneratedFeatures
 import io.mcol.behave.steps.steps
+
+private val featuresInstalled = run { GeneratedFeatures.install() }
 
 // ── Happy path + hook verification ──────────────────────────────────────────
 
@@ -32,6 +35,8 @@ private val counterSteps =
 
 class GherkinFreeSpecTest :
     FreeSpec({
+        @Suppress("UNUSED_EXPRESSION")
+        featuresInstalled
         beforeSpec { hookLog.clear() }
 
         gherkin("features/counter.feature", counterSteps)
