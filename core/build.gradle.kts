@@ -24,8 +24,11 @@ kotlin {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
         }
-        // kotlinx-coroutines-core is needed in jvmMain for runBlocking in SuspendBridge
+        // kotlinx-coroutines-core provides runBlocking used by SuspendBridge on JVM and native.
         jvmMain.dependencies {
+            implementation(libs.kotlinx.coroutines.core)
+        }
+        nativeMain.dependencies {
             implementation(libs.kotlinx.coroutines.core)
         }
     }
