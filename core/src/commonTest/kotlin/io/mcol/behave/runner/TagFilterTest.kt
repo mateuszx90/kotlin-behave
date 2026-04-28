@@ -5,9 +5,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class TagFilterTest {
-
-    private fun matches(expr: String, vararg tags: String) =
-        parseTagFilter(expr).matches(tags.toSet())
+    private fun matches(
+        expr: String,
+        vararg tags: String,
+    ) = parseTagFilter(expr).matches(tags.toSet())
 
     @Test
     fun `single tag matches when present`() {

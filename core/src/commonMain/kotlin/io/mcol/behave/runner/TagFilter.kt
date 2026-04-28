@@ -1,16 +1,29 @@
 package io.mcol.behave.runner
 
 sealed interface TagFilter {
-    data class Tag(val name: String) : TagFilter
-    data class And(val left: TagFilter, val right: TagFilter) : TagFilter
-    data class Or(val left: TagFilter, val right: TagFilter) : TagFilter
-    data class Not(val operand: TagFilter) : TagFilter
+    data class Tag(
+        val name: String,
+    ) : TagFilter
+
+    data class And(
+        val left: TagFilter,
+        val right: TagFilter,
+    ) : TagFilter
+
+    data class Or(
+        val left: TagFilter,
+        val right: TagFilter,
+    ) : TagFilter
+
+    data class Not(
+        val operand: TagFilter,
+    ) : TagFilter
 }
 
 fun TagFilter.matches(tags: Set<String>): Boolean = when (this) {
     is TagFilter.Tag -> name in tags
     is TagFilter.And -> left.matches(tags) && right.matches(tags)
-    is TagFilter.Or  -> left.matches(tags) || right.matches(tags)
+    is TagFilter.Or -> left.matches(tags) || right.matches(tags)
     is TagFilter.Not -> !operand.matches(tags)
 }
 
@@ -35,8 +48,14 @@ private fun tokenize(expr: String): List<String> {
     while (i < s.length) {
         when {
             s[i].isWhitespace() -> i++
-            s[i] == '(' -> { result.add("("); i++ }
-            s[i] == ')' -> { result.add(")"); i++ }
+            s[i] == '(' -> {
+                result.add("(")
+                i++
+            }
+            s[i] == ')' -> {
+                result.add(")")
+                i++
+            }
             s[i] == '@' -> {
                 var j = i + 1
                 while (j < s.length && (s[j].isLetterOrDigit() || s[j] == '-' || s[j] == '_')) j++
@@ -55,10 +74,13 @@ private fun tokenize(expr: String): List<String> {
     return result
 }
 
-private class TagExpressionParser(private val tokens: List<String>) {
+private class TagExpressionParser(
+    private val tokens: List<String>,
+) {
     private var pos = 0
 
     private fun peek(): String? = tokens.getOrNull(pos)
+
     private fun consume(): String = tokens[pos++]
 
     fun parseOr(): TagFilter {

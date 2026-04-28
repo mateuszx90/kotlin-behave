@@ -25,7 +25,6 @@ package io.mcol.behave.steps
  * @see [runScenario]
  */
 interface ScenarioRunner {
-
     /**
      * Called once per scenario. Set up the test environment, then call [run] to execute
      * Before hooks → Background steps → Scenario steps → After hooks.
@@ -34,5 +33,8 @@ interface ScenarioRunner {
      *            (e.g. `HasAppRobot`) to inject dependencies.
      * @param run Blocking lambda that executes the scenario. Call exactly once.
      */
-    fun runScenario(ctx: Any, run: () -> Unit)
+    fun runScenario(
+        ctx: Any,
+        run: () -> Unit,
+    )
 }

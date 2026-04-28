@@ -7,16 +7,16 @@ package io.mcol.behave.ksp
  * then validates those values match the expected type patterns.
  */
 internal object TypeValidator {
-
-    val typeValidationPatterns = mapOf(
-        "int" to Regex("-?\\d+"),
-        "double" to Regex("-?\\d+\\.\\d+"),
-        "boolean" to Regex("true|false"),
-        "long" to Regex("-?\\d+"),
-        "float" to Regex("-?\\d+\\.?\\d*"),
-        "string" to Regex(".*"),  // extracted value has quotes already stripped by capture group
-        "word" to Regex("\\S+"),
-    )
+    val typeValidationPatterns =
+        mapOf(
+            "int" to Regex("-?\\d+"),
+            "double" to Regex("-?\\d+\\.\\d+"),
+            "boolean" to Regex("true|false"),
+            "long" to Regex("-?\\d+"),
+            "float" to Regex("-?\\d+\\.?\\d*"),
+            "string" to Regex(".*"), // extracted value has quotes already stripped by capture group
+            "word" to Regex("\\S+"),
+        )
 
     /**
      * Extract concrete values from [rawText] by building a regex from [templateText].
@@ -25,8 +25,14 @@ internal object TypeValidator {
      * which are replaced with capture groups. The resulting regex is matched against the
      * raw text to extract the concrete values.
      */
-    fun extractConcreteValues(rawText: String, templateText: String): List<String> {
-        data class Token(val range: IntRange, val captureGroup: String)
+    fun extractConcreteValues(
+        rawText: String,
+        templateText: String,
+    ): List<String> {
+        data class Token(
+            val range: IntRange,
+            val captureGroup: String,
+        )
 
         val tokens = mutableListOf<Token>()
 
@@ -37,17 +43,20 @@ internal object TypeValidator {
 
         // Outline variables: <...> (not inside quotes)
         val quotedRanges = tokens.map { it.range }
-        Regex("<[^>]+>").findAll(templateText)
+        Regex("<[^>]+>")
+            .findAll(templateText)
             .filter { m -> quotedRanges.none { m.range.first in it } }
             .forEach { tokens.add(Token(it.range, "(\\S+)")) }
 
         // Standalone doubles (before integers to avoid partial matches)
-        Regex("""(?<!\S)-?\d+\.\d+(?!\S)""").findAll(templateText)
+        Regex("""(?<!\S)-?\d+\.\d+(?!\S)""")
+            .findAll(templateText)
             .filter { m -> tokens.none { m.range.first in it.range } }
             .forEach { tokens.add(Token(it.range, "(-?\\d+\\.\\d+)")) }
 
         // Standalone integers
-        Regex("""(?<!\S)-?\d+(?!\S)""").findAll(templateText)
+        Regex("""(?<!\S)-?\d+(?!\S)""")
+            .findAll(templateText)
             .filter { m -> tokens.none { m.range.first in it.range } }
             .forEach { tokens.add(Token(it.range, "(-?\\d+)")) }
 
@@ -74,6 +83,5 @@ internal object TypeValidator {
     /**
      * Extract placeholder type names from a step expression like "I have {int} items named {string}".
      */
-    fun extractPlaceholderTypes(stepExpression: String): List<String> =
-        Regex("\\{([^}]+)}").findAll(stepExpression).map { it.groupValues[1] }.toList()
+    fun extractPlaceholderTypes(stepExpression: String): List<String> = Regex("\\{([^}]+)}").findAll(stepExpression).map { it.groupValues[1] }.toList()
 }

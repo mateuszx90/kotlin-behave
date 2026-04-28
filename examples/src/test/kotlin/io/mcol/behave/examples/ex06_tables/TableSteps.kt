@@ -18,15 +18,14 @@ class TableSteps : TableStepsSpec {
 
     private val users = mutableListOf<Map<String, String>>()
 
-    // Auto-generated Row class: GivenTheFollowingUsersRow(name, email, age) — all String
-    override suspend fun givenTheFollowingUsers(rows: List<GivenTheFollowingUsersRow>) {
+    // Auto-generated Row class: TheFollowingUsersRow(name, email, age) — all String
+    override suspend fun theFollowingUsers(rows: List<TheFollowingUsersRow>) {
         rows.forEach { row ->
             users.add(mapOf("name" to row.name, "email" to row.email, "age" to row.age))
         }
     }
 
-    override suspend fun thenUsersAreRegistered(int: Int) {
+    override suspend fun usersAreRegistered(int: Int) {
         assertEquals(int, users.size)
     }
 }
-

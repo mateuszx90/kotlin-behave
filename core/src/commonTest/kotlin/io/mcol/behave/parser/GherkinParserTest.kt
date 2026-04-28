@@ -59,10 +59,10 @@ class GherkinParserTest {
         """.trimIndent()
         val steps = GherkinParser.parse(input).scenarios[0].steps
         assertEquals(Keyword.GIVEN, steps[0].keyword)
-        assertEquals(Keyword.WHEN,  steps[1].keyword)
-        assertEquals(Keyword.THEN,  steps[2].keyword)
-        assertEquals(Keyword.AND,   steps[3].keyword)
-        assertEquals(Keyword.BUT,   steps[4].keyword)
+        assertEquals(Keyword.WHEN, steps[1].keyword)
+        assertEquals(Keyword.THEN, steps[2].keyword)
+        assertEquals(Keyword.AND, steps[3].keyword)
+        assertEquals(Keyword.BUT, steps[4].keyword)
     }
 
     @Test
@@ -217,8 +217,8 @@ class GherkinParserTest {
         assertEquals("the following words", step.text)
         val table = step.dataTable
         assertEquals(2, table?.rows?.size)
-        assertEquals("Hund",  table?.rows?.get(0)?.get("word"))
-        assertEquals("cat",   table?.rows?.get(1)?.get("translation"))
+        assertEquals("Hund", table?.rows?.get(0)?.get("word"))
+        assertEquals("cat", table?.rows?.get(1)?.get("translation"))
     }
 
     @Test

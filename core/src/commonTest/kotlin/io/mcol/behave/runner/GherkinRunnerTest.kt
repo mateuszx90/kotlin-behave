@@ -2,15 +2,17 @@ package io.mcol.behave.runner
 
 import io.mcol.behave.model.*
 import io.mcol.behave.steps.*
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlin.test.assertFalse
-import kotlinx.coroutines.test.runTest
+import kotlin.test.assertTrue
 
 class GherkinRunnerTest {
 
-    class Ctx { var value: Int = 0 }
+    class Ctx {
+        var value: Int = 0
+    }
 
     private fun simpleFeature(vararg scenarioSteps: Step) = Feature(
         name = "Test",
@@ -73,10 +75,13 @@ class GherkinRunnerTest {
             Given("fail") { throw AssertionError("boom") }
             Given("succeed") { secondScenarioRan = true }
         }
-        val feature = Feature("F", scenarios = listOf(
-            Scenario("first", listOf(Step(Keyword.GIVEN, "fail"))),
-            Scenario("second", listOf(Step(Keyword.GIVEN, "succeed"))),
-        ))
+        val feature = Feature(
+            "F",
+            scenarios = listOf(
+                Scenario("first", listOf(Step(Keyword.GIVEN, "fail"))),
+                Scenario("second", listOf(Step(Keyword.GIVEN, "succeed"))),
+            ),
+        )
         GherkinRunner(defs).run(feature)
         assertTrue(secondScenarioRan)
     }
@@ -120,7 +125,7 @@ class GherkinRunnerTest {
             name = "F",
             background = Background(listOf(Step(Keyword.GIVEN, "setup"))),
             scenarios = listOf(
-                Scenario("first",  listOf(Step(Keyword.THEN, "value is 10"))),
+                Scenario("first", listOf(Step(Keyword.THEN, "value is 10"))),
                 Scenario("second", listOf(Step(Keyword.THEN, "value is 10"))),
             ),
         )
@@ -133,10 +138,13 @@ class GherkinRunnerTest {
             Given("set {int}") { (n: Int) -> ctx.value = n }
             Then("value is {int}") { (n: Int) -> kotlin.test.assertEquals(n, ctx.value) }
         }
-        val feature = Feature("F", scenarios = listOf(
-            Scenario("first",  listOf(Step(Keyword.GIVEN, "set 1"), Step(Keyword.THEN, "value is 1"))),
-            Scenario("second", listOf(Step(Keyword.GIVEN, "set 2"), Step(Keyword.THEN, "value is 2"))),
-        ))
+        val feature = Feature(
+            "F",
+            scenarios = listOf(
+                Scenario("first", listOf(Step(Keyword.GIVEN, "set 1"), Step(Keyword.THEN, "value is 1"))),
+                Scenario("second", listOf(Step(Keyword.GIVEN, "set 2"), Step(Keyword.THEN, "value is 2"))),
+            ),
+        )
         assertFalse(GherkinRunner(defs).run(feature).hasFailures)
     }
 
@@ -169,10 +177,13 @@ class GherkinRunnerTest {
             Before { beforeCount++ }
             Given("step") { }
         }
-        val feature = Feature("F", scenarios = listOf(
-            Scenario("first",  listOf(Step(Keyword.GIVEN, "step"))),
-            Scenario("second", listOf(Step(Keyword.GIVEN, "step"))),
-        ))
+        val feature = Feature(
+            "F",
+            scenarios = listOf(
+                Scenario("first", listOf(Step(Keyword.GIVEN, "step"))),
+                Scenario("second", listOf(Step(Keyword.GIVEN, "step"))),
+            ),
+        )
         GherkinRunner(defs).run(feature)
         assertEquals(2, beforeCount)
     }
@@ -184,9 +195,12 @@ class GherkinRunnerTest {
             After { afterRan = true }
             Given("fail") { throw AssertionError("boom") }
         }
-        val feature = Feature("F", scenarios = listOf(
-            Scenario("s", listOf(Step(Keyword.GIVEN, "fail")))
-        ))
+        val feature = Feature(
+            "F",
+            scenarios = listOf(
+                Scenario("s", listOf(Step(Keyword.GIVEN, "fail"))),
+            ),
+        )
         GherkinRunner(defs).run(feature)
         assertTrue(afterRan)
     }
@@ -197,12 +211,15 @@ class GherkinRunnerTest {
         var afterRan = false
         val defs = steps(::Ctx) {
             Before { throw AssertionError("before failed") }
-            After  { afterRan = true }
+            After { afterRan = true }
             Given("step") { stepRan = true }
         }
-        val feature = Feature("F", scenarios = listOf(
-            Scenario("s", listOf(Step(Keyword.GIVEN, "step")))
-        ))
+        val feature = Feature(
+            "F",
+            scenarios = listOf(
+                Scenario("s", listOf(Step(Keyword.GIVEN, "step"))),
+            ),
+        )
         val result = GherkinRunner(defs).run(feature)
         assertTrue(result.hasFailures)
         assertFalse(stepRan)
@@ -217,9 +234,12 @@ class GherkinRunnerTest {
             After { order.add(2) }
             Given("step") { }
         }
-        val feature = Feature("F", scenarios = listOf(
-            Scenario("s", listOf(Step(Keyword.GIVEN, "step")))
-        ))
+        val feature = Feature(
+            "F",
+            scenarios = listOf(
+                Scenario("s", listOf(Step(Keyword.GIVEN, "step"))),
+            ),
+        )
         GherkinRunner(defs).run(feature)
         assertEquals(listOf(2, 1), order)
     }
@@ -236,9 +256,12 @@ class GherkinRunnerTest {
             Given("step2") { }
         }
         val combined = defs1 + defs2
-        val feature = Feature("F", scenarios = listOf(
-            Scenario("s", listOf(Step(Keyword.GIVEN, "step1"), Step(Keyword.GIVEN, "step2")))
-        ))
+        val feature = Feature(
+            "F",
+            scenarios = listOf(
+                Scenario("s", listOf(Step(Keyword.GIVEN, "step1"), Step(Keyword.GIVEN, "step2"))),
+            ),
+        )
         GherkinRunner(combined).run(feature)
         assertEquals(2, beforeCount)
     }
@@ -252,10 +275,13 @@ class GherkinRunnerTest {
     fun `per-scenario runner is called once per scenario`() {
         var callCount = 0
         val defs = steps(::Ctx) { Given("step") { } }
-        val feature = Feature("F", scenarios = listOf(
-            Scenario("first",  listOf(Step(Keyword.GIVEN, "step"))),
-            Scenario("second", listOf(Step(Keyword.GIVEN, "step"))),
-        ))
+        val feature = Feature(
+            "F",
+            scenarios = listOf(
+                Scenario("first", listOf(Step(Keyword.GIVEN, "step"))),
+                Scenario("second", listOf(Step(Keyword.GIVEN, "step"))),
+            ),
+        )
         GherkinRunner(defs).runWithPerScenarioRunner(feature) { _, run ->
             callCount++
             run()
@@ -269,10 +295,13 @@ class GherkinRunnerTest {
         var idCounter = 0
         val defs = steps({ TrackCtx(++idCounter) }) { Given("step") { } }
         val seenIds = mutableListOf<Int>()
-        val feature = Feature("F", scenarios = listOf(
-            Scenario("first",  listOf(Step(Keyword.GIVEN, "step"))),
-            Scenario("second", listOf(Step(Keyword.GIVEN, "step"))),
-        ))
+        val feature = Feature(
+            "F",
+            scenarios = listOf(
+                Scenario("first", listOf(Step(Keyword.GIVEN, "step"))),
+                Scenario("second", listOf(Step(Keyword.GIVEN, "step"))),
+            ),
+        )
         GherkinRunner(defs).runWithPerScenarioRunner(feature) { ctx, run ->
             seenIds.add(ctx.id)
             run()
@@ -288,9 +317,12 @@ class GherkinRunnerTest {
             Before { beforeCount++ }
             Given("step") { }
         }
-        val feature = Feature("F", scenarios = listOf(
-            Scenario("s", listOf(Step(Keyword.GIVEN, "step")))
-        ))
+        val feature = Feature(
+            "F",
+            scenarios = listOf(
+                Scenario("s", listOf(Step(Keyword.GIVEN, "step"))),
+            ),
+        )
         GherkinRunner(defs).runWithPerScenarioRunner(feature) { _, run ->
             assertEquals(0, beforeCount)
             run()
@@ -321,17 +353,19 @@ class GherkinRunnerTest {
                 capturedRows.addAll(params.dataTable?.rows ?: emptyList())
             }
         }
-        val table = DataTable(listOf(
-            mapOf("word" to "Hund",  "translation" to "dog"),
-            mapOf("word" to "Katze", "translation" to "cat"),
-            mapOf("word" to "Haus",  "translation" to "house"),
-        ))
+        val table = DataTable(
+            listOf(
+                mapOf("word" to "Hund", "translation" to "dog"),
+                mapOf("word" to "Katze", "translation" to "cat"),
+                mapOf("word" to "Haus", "translation" to "house"),
+            ),
+        )
         val feature = simpleFeature(Step(Keyword.GIVEN, "the following words", table))
         assertFalse(GherkinRunner(defs).run(feature).hasFailures)
         assertEquals(3, capturedRows.size)
-        assertEquals(mapOf<String, String?>("word" to "Hund",  "translation" to "dog"),   capturedRows[0])
-        assertEquals(mapOf<String, String?>("word" to "Katze", "translation" to "cat"),   capturedRows[1])
-        assertEquals(mapOf<String, String?>("word" to "Haus",  "translation" to "house"), capturedRows[2])
+        assertEquals(mapOf<String, String?>("word" to "Hund", "translation" to "dog"), capturedRows[0])
+        assertEquals(mapOf<String, String?>("word" to "Katze", "translation" to "cat"), capturedRows[1])
+        assertEquals(mapOf<String, String?>("word" to "Haus", "translation" to "house"), capturedRows[2])
     }
 
     @Test
@@ -345,9 +379,9 @@ class GherkinRunnerTest {
         }
         gherkin("features/data_table.feature", defs)
         assertEquals(3, capturedRows.size)
-        assertEquals(mapOf<String, String?>("word" to "Hund",  "translation" to "dog"),   capturedRows[0])
-        assertEquals(mapOf<String, String?>("word" to "Katze", "translation" to "cat"),   capturedRows[1])
-        assertEquals(mapOf<String, String?>("word" to "Haus",  "translation" to "house"), capturedRows[2])
+        assertEquals(mapOf<String, String?>("word" to "Hund", "translation" to "dog"), capturedRows[0])
+        assertEquals(mapOf<String, String?>("word" to "Katze", "translation" to "cat"), capturedRows[1])
+        assertEquals(mapOf<String, String?>("word" to "Haus", "translation" to "house"), capturedRows[2])
     }
 
     @Test
@@ -360,7 +394,7 @@ class GherkinRunnerTest {
             Then("word count is {int}") { (n: Int) -> assertEquals(n, capturedRows.size) }
         }
         gherkin("features/data_table_null.feature", defs)
-        assertEquals(null,  capturedRows[0]["translation"]) // "null" text → null
+        assertEquals(null, capturedRows[0]["translation"]) // "null" text → null
         assertEquals("cat", capturedRows[1]["translation"]) // normal value
     }
 
@@ -379,7 +413,9 @@ class GherkinRunnerTest {
 
     @Test
     fun `end-to-end gherkin runs feature file and passes`() = runTest {
-        class WordCtx { var count: Int = 0 }
+        class WordCtx {
+            var count: Int = 0
+        }
         val wordSteps = steps(::WordCtx) {
             Given("the adapter count is {int}") { (n: Int) -> ctx.count = n }
             Given("adapter count is {int}") { (n: Int) -> ctx.count = n }

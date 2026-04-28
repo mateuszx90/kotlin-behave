@@ -9,7 +9,6 @@ data class CompiledExpression(
 )
 
 class TypeRegistry {
-
     private data class PlaceholderDef(
         val name: String,
         val pattern: String,
@@ -22,26 +21,34 @@ class TypeRegistry {
         val convert: (Map<String, String?>) -> Any,
     )
 
-    private val builtins = listOf(
-        PlaceholderDef("{int}",    "{int}",    """-?\d+""",       { it.toInt() }),
-        PlaceholderDef("{long}",   "{long}",   """-?\d+""",       { it.toLong() }),
-        PlaceholderDef("{float}",  "{float}",  """-?\d+\.?\d*""", { it.toFloat() }),
-        PlaceholderDef("{double}", "{double}", """-?\d+\.?\d*""", { it.toDouble() }),
-        PlaceholderDef("{string}", "{string}", """"[^"]*"""",     { it.removeSurrounding("\"") }),
-        PlaceholderDef("{word}",    "{word}",    """\S+""",         { it }),
-        PlaceholderDef("{boolean}", "{boolean}", """true|false""",  { it.toBooleanStrict() }),
-    )
+    private val builtins =
+        listOf(
+            PlaceholderDef("{int}", "{int}", """-?\d+""", { it.toInt() }),
+            PlaceholderDef("{long}", "{long}", """-?\d+""", { it.toLong() }),
+            PlaceholderDef("{float}", "{float}", """-?\d+\.?\d*""", { it.toFloat() }),
+            PlaceholderDef("{double}", "{double}", """-?\d+\.?\d*""", { it.toDouble() }),
+            PlaceholderDef("{string}", "{string}", """"[^"]*"""", { it.removeSurrounding("\"") }),
+            PlaceholderDef("{word}", "{word}", """\S+""", { it }),
+            PlaceholderDef("{boolean}", "{boolean}", """true|false""", { it.toBooleanStrict() }),
+        )
 
     private val customScalar = mutableListOf<PlaceholderDef>()
-    private val tableTypes   = mutableListOf<TableTypeDef>()
+    private val tableTypes = mutableListOf<TableTypeDef>()
 
-    fun register(name: String, pattern: String, convert: (String) -> Any) {
+    fun register(
+        name: String,
+        pattern: String,
+        convert: (String) -> Any,
+    ) {
         val placeholder = "{$name}"
         customScalar.removeAll { it.name == placeholder }
         customScalar.add(PlaceholderDef(placeholder, placeholder, pattern, convert))
     }
 
-    fun registerTableType(name: String, convert: (Map<String, String?>) -> Any) {
+    fun registerTableType(
+        name: String,
+        convert: (Map<String, String?>) -> Any,
+    ) {
         tableTypes.removeAll { it.name == name }
         tableTypes.add(TableTypeDef(name, convert))
     }
@@ -49,9 +56,9 @@ class TypeRegistry {
     fun findTableConverter(): ((Map<String, String?>) -> Any)? = tableTypes.firstOrNull()?.convert
 
     fun merge(other: TypeRegistry): TypeRegistry {
-        val thisNames  = (customScalar.map { it.name } + tableTypes.map { it.name }).toSet()
+        val thisNames = (customScalar.map { it.name } + tableTypes.map { it.name }).toSet()
         val otherNames = (other.customScalar.map { it.name } + other.tableTypes.map { it.name }).toSet()
-        val conflicts  = thisNames intersect otherNames
+        val conflicts = thisNames intersect otherNames
         if (conflicts.isNotEmpty()) {
             error("TypeRegistry merge conflict: duplicate type name(s): ${conflicts.joinToString()}")
         }

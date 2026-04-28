@@ -128,9 +128,9 @@ class BehaveProcessor(
             var rawExpr = io.mcol.behave.ksp.CodeGenerator.escapeStepExpression(
                 io.mcol.behave.ksp.CodeGenerator.replaceOutlineVariables(
                     io.mcol.behave.ksp.CodeGenerator.replaceNumberLiterals(
-                        io.mcol.behave.ksp.CodeGenerator.replaceQuotedLiterals(step.text)
-                    )
-                )
+                        io.mcol.behave.ksp.CodeGenerator.replaceQuotedLiterals(step.text),
+                    ),
+                ),
             )
 
             // Unify {word} → {string} when any sibling template has a quoted literal
@@ -225,7 +225,10 @@ class BehaveProcessor(
             val typeDecl = type?.declaration as? KSClassDeclaration ?: return@mapNotNull null
             val typeName = buildString {
                 val pkg = typeDecl.packageName.asString()
-                if (pkg.isNotEmpty()) { append(pkg); append(".") }
+                if (pkg.isNotEmpty()) {
+                    append(pkg)
+                    append(".")
+                }
                 append(typeDecl.simpleName.asString())
             }
             val constructorParams = typeDecl.primaryConstructor?.parameters
@@ -284,7 +287,7 @@ class BehaveProcessor(
             Regex("""(?<!\S)-?\d+(?!\S)""").findAll(text)
                 .filter { m ->
                     !inQuotes(m.range.first) &&
-                    none { tok -> m.range.first >= tok.pos && m.range.first <= tok.pos + 10 && tok.kind == Kind.NUMBER }
+                        none { tok -> m.range.first >= tok.pos && m.range.first <= tok.pos + 10 && tok.kind == Kind.NUMBER }
                 }
                 .forEach { add(Tok(it.range.first, Kind.NUMBER, "int")) }
         }.sortedBy { it.pos }
@@ -300,7 +303,7 @@ class BehaveProcessor(
                     io.mcol.behave.ksp.CodeGenerator.StepParam(
                         name = mapping.typeName.substringAfterLast('.').replaceFirstChar { it.lowercase() },
                         typeName = mapping.typeName,
-                    )
+                    ),
                 )
                 usedPlaceholders.addAll(mapping.fields)
             }
@@ -323,7 +326,7 @@ class BehaveProcessor(
                         else -> "String" to tok.name
                     }
                 }
-                Kind.QUOTED -> "String" to tok.name   // tok.name is variable name or "string"
+                Kind.QUOTED -> "String" to tok.name // tok.name is variable name or "string"
                 Kind.VARIABLE -> "String" to tok.name
                 Kind.NUMBER -> {
                     val kotlinType = io.mcol.behave.ksp.CodeGenerator.builtinTypes[tok.name] ?: "Int"

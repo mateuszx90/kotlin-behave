@@ -156,9 +156,13 @@ fun <C> FreeSpec.gherkin(
     }
 }
 
-private suspend fun <C> dispatchHook(hook: Hook<C>, info: ScenarioInfo, ctx: C) {
+private suspend fun <C> dispatchHook(
+    hook: Hook<C>,
+    info: ScenarioInfo,
+    ctx: C,
+) {
     when (hook) {
-        is Hook.WithCtx            -> hook.block(ctx)
+        is Hook.WithCtx -> hook.block(ctx)
         is Hook.WithScenarioAndCtx -> hook.block(info, ctx)
     }
 }

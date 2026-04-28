@@ -5,33 +5,35 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class TagParserTest {
-
     @Test
     fun `parses feature tags`() {
-        val input = """
+        val input =
+            """
             @smoke @auth
             Feature: Login
               Scenario: S
                 Given step
-        """.trimIndent()
+            """.trimIndent()
         val feature = GherkinParser.parse(input)
         assertEquals(setOf("@smoke", "@auth"), feature.tags)
     }
 
     @Test
     fun `parses scenario tags`() {
-        val input = """
+        val input =
+            """
             Feature: F
               @happy-path
               Scenario: S
                 Given step
-        """.trimIndent()
+            """.trimIndent()
         assertEquals(setOf("@happy-path"), GherkinParser.parse(input).scenarios[0].tags)
     }
 
     @Test
     fun `feature tags are inherited by all scenarios`() {
-        val input = """
+        val input =
+            """
             @smoke
             Feature: F
               Scenario: first
@@ -39,7 +41,7 @@ class TagParserTest {
               @wip
               Scenario: second
                 Given step
-        """.trimIndent()
+            """.trimIndent()
         val feature = GherkinParser.parse(input)
         assertTrue("@smoke" in feature.scenarios[0].tags)
         assertTrue("@smoke" in feature.scenarios[1].tags)
@@ -48,7 +50,8 @@ class TagParserTest {
 
     @Test
     fun `scenario outline tags merged with examples tags`() {
-        val input = """
+        val input =
+            """
             Feature: F
               @slow
               Scenario Outline: counts
@@ -57,7 +60,7 @@ class TagParserTest {
                 Examples:
                   | n |
                   | 5 |
-        """.trimIndent()
+            """.trimIndent()
         val tags = GherkinParser.parse(input).scenarios[0].tags
         assertTrue("@slow" in tags)
         assertTrue("@admin" in tags)
@@ -65,22 +68,24 @@ class TagParserTest {
 
     @Test
     fun `multi-tag line is parsed correctly`() {
-        val input = """
+        val input =
+            """
             Feature: F
               @tag1 @tag2 @tag3
               Scenario: S
                 Given step
-        """.trimIndent()
+            """.trimIndent()
         assertEquals(setOf("@tag1", "@tag2", "@tag3"), GherkinParser.parse(input).scenarios[0].tags)
     }
 
     @Test
     fun `feature without tags has empty tag set`() {
-        val input = """
+        val input =
+            """
             Feature: F
               Scenario: S
                 Given step
-        """.trimIndent()
+            """.trimIndent()
         val feature = GherkinParser.parse(input)
         assertTrue(feature.tags.isEmpty())
         assertTrue(feature.scenarios[0].tags.isEmpty())
@@ -88,7 +93,8 @@ class TagParserTest {
 
     @Test
     fun `expanded outline rows carry fully resolved tags`() {
-        val input = """
+        val input =
+            """
             @feature-tag
             Feature: F
               @outline-tag
@@ -99,7 +105,7 @@ class TagParserTest {
                   | n |
                   | 1 |
                   | 2 |
-        """.trimIndent()
+            """.trimIndent()
         val feature = GherkinParser.parse(input)
         assertEquals(2, feature.scenarios.size)
         for (scenario in feature.scenarios) {

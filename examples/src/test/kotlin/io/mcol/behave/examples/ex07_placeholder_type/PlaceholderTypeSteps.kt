@@ -24,11 +24,11 @@ class PlaceholderTypeSteps : PlaceholderTypeStepsSpec {
 
     private var currentScreen = ""
 
-    override suspend fun whenITapTheButton(label: ButtonLabel) {
+    override suspend fun iTapTheButton(label: ButtonLabel) {
         currentScreen = "navigated from ${label.value}"
     }
 
-    override suspend fun thenISeeTheScreen(screen: Screen) {
+    override suspend fun iSeeTheScreen(screen: Screen) {
         check(currentScreen.isNotEmpty()) { "No navigation happened" }
     }
 }

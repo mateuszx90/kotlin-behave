@@ -27,11 +27,11 @@ class MultiOutlineSteps : MultiOutlineStepsSpec {
     private var loggedInUser = ""
     private var landingPage = ""
 
-    override suspend fun givenAUserWithRole(username: String, role: String) {
+    override suspend fun aUserWithRole(username: String, role: String) {
         currentRole = role
     }
 
-    override suspend fun whenILoginAsWithPassword(username: String, password: String) {
+    override suspend fun iLoginAsWithPassword(username: String, password: String) {
         loggedInUser = username
         landingPage = when (currentRole) {
             "admin" -> "dashboard"
@@ -40,11 +40,11 @@ class MultiOutlineSteps : MultiOutlineStepsSpec {
         }
     }
 
-    override suspend fun thenIAmRedirectedToThePage(landing: String) {
+    override suspend fun iAmRedirectedToThePage(landing: String) {
         assertEquals(landing, landingPage)
     }
 
-    override suspend fun andISeeAWelcomeMessageFor(username: String) {
+    override suspend fun iSeeAWelcomeMessageFor(username: String) {
         assertEquals(loggedInUser, username)
     }
 
@@ -53,23 +53,34 @@ class MultiOutlineSteps : MultiOutlineStepsSpec {
     private var responseStatus = ""
     private var responseBody = ""
 
-    override suspend fun whenISendARequestTo(method: String, path: String) {
+    override suspend fun iSendARequestTo(method: String, path: String) {
         // Simulate HTTP responses based on method + path
         when {
-            method == "GET" && path == "/users" -> { responseStatus = "200"; responseBody = "user list" }
-            method == "POST" && path == "/users" -> { responseStatus = "201"; responseBody = "created" }
-            method == "DELETE" && path == "/users/1" -> { responseStatus = "204"; responseBody = "deleted" }
-            else -> { responseStatus = "404"; responseBody = "not found" }
+            method == "GET" && path == "/users" -> {
+                responseStatus = "200"
+                responseBody = "user list"
+            }
+            method == "POST" && path == "/users" -> {
+                responseStatus = "201"
+                responseBody = "created"
+            }
+            method == "DELETE" && path == "/users/1" -> {
+                responseStatus = "204"
+                responseBody = "deleted"
+            }
+            else -> {
+                responseStatus = "404"
+                responseBody = "not found"
+            }
         }
     }
 
     // <status> is unquoted → {word} → String (not Int, even though values are numeric)
-    override suspend fun thenTheResponseStatusIs(status: String) {
+    override suspend fun theResponseStatusIs(status: String) {
         assertEquals(status, responseStatus)
     }
 
-    override suspend fun andTheResponseContains(body: String) {
+    override suspend fun theResponseContains(body: String) {
         assertEquals(body, responseBody)
     }
 }
-
