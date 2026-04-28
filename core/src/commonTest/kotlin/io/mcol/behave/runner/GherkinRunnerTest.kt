@@ -1,5 +1,6 @@
 package io.mcol.behave.runner
 
+import io.mcol.behave.generated.GeneratedFeatures
 import io.mcol.behave.model.*
 import io.mcol.behave.steps.*
 import kotlinx.coroutines.test.runTest
@@ -9,6 +10,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class GherkinRunnerTest {
+
+    init {
+        GeneratedFeatures.install()
+    }
 
     class Ctx {
         var value: Int = 0
@@ -337,8 +342,7 @@ class GherkinRunnerTest {
             Given("the value is {int}") { (n: Int) -> ctx.value = n }
             Then("value equals {int}") { (n: Int) -> kotlin.test.assertEquals(n, ctx.value) }
         }
-        val content = readResource("features/hello.feature")
-        val feature = io.mcol.behave.parser.GherkinParser.parse(content)
+        val feature = loadFeature("features/hello.feature")
         assertFalse(GherkinRunner(defs).run(feature).hasFailures)
     }
 
