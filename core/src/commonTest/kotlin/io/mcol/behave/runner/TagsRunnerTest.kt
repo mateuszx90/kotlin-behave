@@ -62,7 +62,7 @@ class TagsRunnerTest {
     }
 
     @Test
-    fun `per-scenario runner skips filtered scenarios`() {
+    fun `per-scenario runner skips filtered scenarios`() = runTest {
         val ran = mutableListOf<String>()
         val defs = steps(::Ctx) { Given("step") { ran.add("ran") } }
         val result = GherkinRunner(defs, tags = "@smoke").runWithPerScenarioRunner(makeFeature()) { _, run -> run() }

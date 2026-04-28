@@ -64,7 +64,7 @@ class TagFilteringTest {
     // region runWithPerScenarioRunner()
 
     @Test
-    fun `per-scenario runner skips non-matching scenarios`() {
+    fun `per-scenario runner skips non-matching scenarios`() = runTest {
         val ran = mutableListOf<String>()
         val defs = steps(::Ctx) { Given("step") { ran.add("ran") } }
         val result = GherkinRunner(defs, tags = "@smoke").runWithPerScenarioRunner(makeFeature()) { _, run -> run() }
@@ -74,7 +74,7 @@ class TagFilteringTest {
     }
 
     @Test
-    fun `per-scenario runner does not call after hooks for skipped scenarios`() {
+    fun `per-scenario runner does not call after hooks for skipped scenarios`() = runTest {
         var afterHookCount = 0
         val defs = steps(::Ctx) {
             After { _: Ctx -> afterHookCount++ }

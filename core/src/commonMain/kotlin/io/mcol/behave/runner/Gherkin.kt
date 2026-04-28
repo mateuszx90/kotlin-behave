@@ -36,16 +36,14 @@ suspend fun <C> gherkin(
 
 /**
  * Run each scenario through [runScenario] (e.g. a fresh Compose test per scenario).
- * [runScenario] receives a blocking [run] lambda — call it to execute the scenario's
+ * [runScenario] receives a suspending [run] lambda — call it to execute the scenario's
  * Before hooks → Background steps → Scenario steps → After hooks.
- *
- * Non-suspend. The runner bridges to suspend executeScenario via SuspendBridge (JVM only).
  */
-fun <C> gherkin(
+suspend fun <C> gherkin(
     path: String,
     steps: StepDefinitions<C>,
     tags: String? = null,
-    runScenario: (ctx: C, run: () -> Unit) -> Unit,
+    runScenario: suspend (ctx: C, run: suspend () -> Unit) -> Unit,
 ) {
     val feature = loadFeature(path)
     val result = GherkinRunner(steps, tags).runWithPerScenarioRunner(feature, runScenario)

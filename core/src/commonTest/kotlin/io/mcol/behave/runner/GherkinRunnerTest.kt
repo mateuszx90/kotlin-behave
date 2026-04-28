@@ -268,11 +268,10 @@ class GherkinRunnerTest {
 
     // endregion
 
-    // region per-scenario runner (non-suspend) --------------------------------
-    // These tests do NOT use runTest — runWithPerScenarioRunner is non-suspend.
+    // region per-scenario runner ----------------------------------------------
 
     @Test
-    fun `per-scenario runner is called once per scenario`() {
+    fun `per-scenario runner is called once per scenario`() = runTest {
         var callCount = 0
         val defs = steps(::Ctx) { Given("step") { } }
         val feature = Feature(
@@ -290,7 +289,7 @@ class GherkinRunnerTest {
     }
 
     @Test
-    fun `per-scenario runner receives fresh ctx for each scenario`() {
+    fun `per-scenario runner receives fresh ctx for each scenario`() = runTest {
         data class TrackCtx(var id: Int = 0)
         var idCounter = 0
         val defs = steps({ TrackCtx(++idCounter) }) { Given("step") { } }
@@ -311,7 +310,7 @@ class GherkinRunnerTest {
     }
 
     @Test
-    fun `per-scenario runner executes Before hooks inside run lambda`() {
+    fun `per-scenario runner executes Before hooks inside run lambda`() = runTest {
         var beforeCount = 0
         val defs = steps(::Ctx) {
             Before { beforeCount++ }

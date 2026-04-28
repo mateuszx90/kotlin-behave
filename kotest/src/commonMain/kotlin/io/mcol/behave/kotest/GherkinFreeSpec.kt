@@ -29,9 +29,8 @@ import io.mcol.behave.steps.StepDefinitions
  *   Feature: <name>          ← container
  *     Scenario: <name>       ← leaf test (all steps run inside runScenario)
  *
- * [runScenario] receives the fresh ctx and a blocking [run] lambda. Call [run] to execute
+ * [runScenario] receives the fresh ctx and a suspending [run] lambda. Call [run] to execute
  * Before hooks → Background steps → Scenario steps → After hooks for that scenario.
- * Non-suspend; bridges to suspend internally via SuspendBridge (JVM only).
  *
  * @param tags Optional tag filter expression, e.g. "@smoke and not @wip"
  */
@@ -39,7 +38,7 @@ fun <C> FreeSpec.gherkin(
     path: String,
     steps: StepDefinitions<C>,
     tags: String? = null,
-    runScenario: (ctx: C, run: () -> Unit) -> Unit,
+    runScenario: suspend (ctx: C, run: suspend () -> Unit) -> Unit,
 ) {
     val feature = loadFeature(path)
     "Feature: ${feature.name}" - {

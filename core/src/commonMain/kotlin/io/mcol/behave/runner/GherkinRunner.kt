@@ -51,13 +51,9 @@ class GherkinRunner<C>(
         return RunResult(feature.name, results)
     }
 
-    /**
-     * Non-suspend: runScenario and the run lambda it receives are plain blocking.
-     * executeScenario (suspend) is bridged via runSuspendBlocking — JVM only.
-     */
-    fun runWithPerScenarioRunner(
+    suspend fun runWithPerScenarioRunner(
         feature: Feature,
-        runScenario: (ctx: C, run: () -> Unit) -> Unit,
+        runScenario: suspend (ctx: C, run: suspend () -> Unit) -> Unit,
     ): RunResult {
         val results = feature.scenarios.map { scenario ->
             if (tagFilter != null && !tagFilter!!.matches(scenario.tags)) {
@@ -69,7 +65,7 @@ class GherkinRunner<C>(
                 val ctx = stepDefinitions.factory()
                 stepDefinitions.stepBuilder.ctx = ctx
                 var result = ScenarioResult(scenario.name, passed = true)
-                val run: () -> Unit = { result = runSuspendBlocking { executeScenario(feature, scenario) } }
+                val run: suspend () -> Unit = { result = executeScenario(feature, scenario) }
                 runScenario(ctx, run)
                 result
             }
