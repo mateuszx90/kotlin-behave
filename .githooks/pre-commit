@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+EXPECTED_EMAIL="mateuszx90@gmail.com"
+AUTHOR_EMAIL="$(git config user.email)"
+if [ "$AUTHOR_EMAIL" != "$EXPECTED_EMAIL" ]; then
+  echo "✗ Commit author email must be $EXPECTED_EMAIL (got: $AUTHOR_EMAIL)."
+  echo "  Run: git config user.email $EXPECTED_EMAIL"
+  exit 1
+fi
+
 echo "▸ Running spotless check..."
 ./gradlew spotlessCheck --quiet
 
