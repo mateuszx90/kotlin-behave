@@ -1,0 +1,10 @@
+{
+  "name": "kotlin-behave",
+  "description": "BDD skills for kotlin-behave: Gherkin feature files, KSP step generation, and test methodology",
+  "version": "0.1.0",
+  "author": {
+    "name": "mcol"
+  },
+  "repository": "https://github.com/mcol/kotlin-behave",
+  "license": "MIT"
+}

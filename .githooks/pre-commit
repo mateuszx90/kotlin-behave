@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "▸ Running build and tests..."
+
+# Run JVM compilation + tests (skip iOS/JS/Native to keep it fast and portable)
+./gradlew jvmTest :examples:test --quiet
+
+echo "✓ Build and tests passed."
