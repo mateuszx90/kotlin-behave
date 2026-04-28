@@ -6,7 +6,6 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class TypeRegistryTest {
-
     // region expression compilation -----------------------------------------
 
     @Test

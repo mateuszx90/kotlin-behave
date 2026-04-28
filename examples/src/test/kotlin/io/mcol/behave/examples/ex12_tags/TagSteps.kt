@@ -16,31 +16,31 @@ class TagSteps : TagStepsSpec {
 
     private var loggedIn = false
 
-    override suspend fun givenIAmLoggedIn() {
+    override suspend fun iAmLoggedIn() {
         loggedIn = true
     }
 
-    override suspend fun thenISeeTheDashboard() {
+    override suspend fun iSeeTheDashboard() {
         check(loggedIn)
     }
 
-    override suspend fun andIHaveUnreadNotifications(int: Int) {
+    override suspend fun iHaveUnreadNotifications(int: Int) {
         check(int > 0)
     }
 
-    override suspend fun thenISeeTheNotificationBadge() {
+    override suspend fun iSeeTheNotificationBadge() {
         check(loggedIn)
     }
 
-    override suspend fun andTheDatabaseHasRecords(int: Int) {
+    override suspend fun theDatabaseHasRecords(int: Int) {
         check(int > 0)
     }
 
-    override suspend fun thenTheDashboardLoadsWithinSeconds(int: Int) {
+    override suspend fun theDashboardLoadsWithinSeconds(int: Int) {
         check(int > 0)
     }
 
-    override suspend fun thenISeeTheAnalyticsWidget() {
+    override suspend fun iSeeTheAnalyticsWidget() {
         check(loggedIn)
     }
 }

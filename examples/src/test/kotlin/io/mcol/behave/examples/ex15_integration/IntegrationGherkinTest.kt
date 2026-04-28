@@ -7,6 +7,7 @@ import io.mcol.behave.kotest.gherkin
 // This additional test class demonstrates tag filtering with the generated steps val.
 
 /** Same feature, but only `@smoke` scenarios. */
-class IntegrationSmokeTest : FreeSpec({
-    gherkin("features/15_full_integration.feature", generatedIntegrationSteps, tags = "@smoke")
-})
+class IntegrationSmokeTest :
+    FreeSpec({
+        gherkin("features/15_full_integration.feature", generatedIntegrationSteps, tags = "@smoke")
+    })

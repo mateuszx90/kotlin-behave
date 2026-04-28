@@ -6,16 +6,16 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class FeatureFileParserTest {
-
     @Test
     fun `parses basic scenario steps`() {
-        val feature = """
+        val feature =
+            """
             Feature: Login
               Scenario: S
                 Given I am on the login page
                 When I enter "admin" as username
                 Then I see the dashboard
-        """.trimIndent()
+            """.trimIndent()
         val parsed = FeatureFileParser.parse(feature)
         assertEquals(3, parsed.steps.size)
         assertEquals("Given", parsed.steps[0].keyword)
@@ -24,13 +24,14 @@ class FeatureFileParserTest {
 
     @Test
     fun `Background steps are included`() {
-        val feature = """
+        val feature =
+            """
             Feature: F
               Background:
                 Given I have a collection "words"
               Scenario: S
                 When I do something
-        """.trimIndent()
+            """.trimIndent()
         val parsed = FeatureFileParser.parse(feature)
         assertEquals(2, parsed.steps.size)
         assertTrue(parsed.steps.any { it.keyword == "Given" && it.text.contains("I have a collection") })
@@ -38,21 +39,23 @@ class FeatureFileParserTest {
 
     @Test
     fun `duplicate steps are deduplicated`() {
-        val feature = """
+        val feature =
+            """
             Feature: F
               Background:
                 Given I am logged in
               Scenario: first
                 Given I am logged in
                 When I do something
-        """.trimIndent()
+            """.trimIndent()
         val parsed = FeatureFileParser.parse(feature)
         assertEquals(2, parsed.steps.size)
     }
 
     @Test
     fun `scenario outline templates preserved with variable tokens`() {
-        val feature = """
+        val feature =
+            """
             Feature: F
               Scenario Outline: login as <role>
                 Given I am logged in as <role>
@@ -60,7 +63,7 @@ class FeatureFileParserTest {
                   | role  |
                   | admin |
                   | user  |
-        """.trimIndent()
+            """.trimIndent()
         val parsed = FeatureFileParser.parse(feature)
         assertEquals(1, parsed.steps.size)
         assertTrue(parsed.steps[0].text.contains("<role>"))
@@ -68,13 +71,14 @@ class FeatureFileParserTest {
 
     @Test
     fun `detects DataTable and extracts column headers`() {
-        val feature = """
+        val feature =
+            """
             Feature: F
               Scenario: S
                 Given the following cats:
                   | name   | color |
                   | Whisky | black |
-        """.trimIndent()
+            """.trimIndent()
         val parsed = FeatureFileParser.parse(feature)
         val step = parsed.steps.first()
         assertTrue(step.hasDataTable)
@@ -85,7 +89,7 @@ class FeatureFileParserTest {
     fun `normalises step text for deduplication`() {
         val n1 = FeatureFileParser.normalise("Given", "I have {int} items")
         val n2 = FeatureFileParser.normalise("Given", "I have {string} items")
-        assertEquals(n1, n2) // both normalise to "given i have {} items"
+        assertEquals(n1, n2) // both normalise to "i have {} items"
     }
 
     @Test
@@ -97,39 +101,82 @@ class FeatureFileParserTest {
 
     @Test
     fun `quoted literal steps with different literals are deduplicated`() {
-        val feature = """
+        val feature =
+            """
             Feature: F
               Scenario: first
                 When I tap "Cancel"
               Scenario: second
                 When I tap "Discard"
-        """.trimIndent()
+            """.trimIndent()
         val parsed = FeatureFileParser.parse(feature)
         assertEquals(1, parsed.steps.size) // deduplicated: same step pattern
     }
 
     @Test
-    fun `And and But steps are included`() {
-        val feature = """
+    fun `And and But resolve to previous keyword`() {
+        val feature =
+            """
             Feature: F
               Scenario: S
                 Given step
                 And another
                 But not this
-        """.trimIndent()
+            """.trimIndent()
         val parsed = FeatureFileParser.parse(feature)
         assertEquals(3, parsed.steps.size)
+        assertEquals("Given", parsed.steps[0].keyword)
+        assertEquals("Given", parsed.steps[1].keyword, "And should resolve to Given")
+        assertEquals("Given", parsed.steps[2].keyword, "But should resolve to Given")
+    }
+
+    @Test
+    fun `And after When resolves to When`() {
+        val feature =
+            """
+            Feature: F
+              Scenario: S
+                Given setup
+                When I do something
+                And I do another thing
+                Then result
+                And another result
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertEquals("Given", parsed.steps[0].keyword)
+        assertEquals("When", parsed.steps[1].keyword)
+        assertEquals("When", parsed.steps[2].keyword, "And after When should resolve to When")
+        assertEquals("Then", parsed.steps[3].keyword)
+        assertEquals("Then", parsed.steps[4].keyword, "And after Then should resolve to Then")
+    }
+
+    @Test
+    fun `same step text with When and And deduplicates to one method`() {
+        val feature =
+            """
+            Feature: F
+              Scenario: first
+                When I navigate to step 2
+              Scenario: second
+                When I start the timer
+                And I navigate to step 1
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        val navigateSteps = parsed.steps.filter { it.text.contains("I navigate to step") }
+        assertEquals(1, navigateSteps.size, "When and And with same text should deduplicate")
+        assertEquals("When", navigateSteps[0].keyword)
     }
 
     @Test
     fun `allStepInstances preserves all concrete values before deduplication`() {
-        val feature = """
+        val feature =
+            """
             Feature: F
               Scenario: first
                 When I tap "Cancel"
               Scenario: second
                 When I tap "Discard"
-        """.trimIndent()
+            """.trimIndent()
         val parsed = FeatureFileParser.parse(feature)
         assertEquals(1, parsed.steps.size) // deduplicated
         assertEquals(2, parsed.allStepInstances.size) // both raw instances
@@ -139,13 +186,14 @@ class FeatureFileParserTest {
 
     @Test
     fun `allStepInstances includes scenario name for error reporting`() {
-        val feature = """
+        val feature =
+            """
             Feature: F
               Scenario: Create pasta
                 When I create something named "Pasta"
               Scenario: Create salad
                 When I create something named "Salad"
-        """.trimIndent()
+            """.trimIndent()
         val parsed = FeatureFileParser.parse(feature)
         val pastaInstance = parsed.allStepInstances.first { it.text.contains("Pasta") }
         assertEquals("Create pasta", pastaInstance.scenarioName)
@@ -153,13 +201,14 @@ class FeatureFileParserTest {
 
     @Test
     fun `allStepInstances includes background steps`() {
-        val feature = """
+        val feature =
+            """
             Feature: F
               Background:
                 Given I am logged in
               Scenario: first
                 When I do something
-        """.trimIndent()
+            """.trimIndent()
         val parsed = FeatureFileParser.parse(feature)
         assertTrue(parsed.allStepInstances.any { it.keyword == "Given" })
     }
@@ -167,7 +216,7 @@ class FeatureFileParserTest {
     @Test
     fun `extractConcreteValues extracts quoted strings and numbers from raw text`() {
         val template = """I create a recipe with 4 portions named "Pasta""""
-        val raw =      """I create a recipe with 2 portions named "Salad""""
+        val raw = """I create a recipe with 2 portions named "Salad""""
         val values = TypeValidator.extractConcreteValues(raw, template)
         assertEquals(listOf("2", "Salad"), values)
     }
@@ -197,13 +246,14 @@ class FeatureFileParserTest {
 
     @Test
     fun `steps with different number literals are deduplicated`() {
-        val feature = """
+        val feature =
+            """
             Feature: F
               Scenario: first
                 When I create a recipe with 4 portions named "Pasta"
               Scenario: second
                 When I create a recipe with 2 portions named "Salad"
-        """.trimIndent()
+            """.trimIndent()
         val parsed = FeatureFileParser.parse(feature)
         val createSteps = parsed.steps.filter { it.text.contains("create a recipe") }
         assertEquals(1, createSteps.size, "Steps with different numbers should deduplicate")
@@ -217,7 +267,8 @@ class FeatureFileParserTest {
 
     @Test
     fun `Scenario Outline steps are expanded into allStepInstances`() {
-        val feature = """
+        val feature =
+            """
             Feature: F
               Scenario Outline: Click
                 When I click <count> times
@@ -225,7 +276,7 @@ class FeatureFileParserTest {
                   | count |
                   | 3     |
                   | 5     |
-        """.trimIndent()
+            """.trimIndent()
         val parsed = FeatureFileParser.parse(feature)
         val clickInstances = parsed.allStepInstances.filter { it.text.contains("click") }
         assertEquals(2, clickInstances.size)
@@ -235,7 +286,8 @@ class FeatureFileParserTest {
 
     @Test
     fun `Outline expanded steps include scenario name with row values`() {
-        val feature = """
+        val feature =
+            """
             Feature: F
               Scenario Outline: Login as <role>
                 Given I am logged in as <role>
@@ -243,7 +295,7 @@ class FeatureFileParserTest {
                   | role  |
                   | admin |
                   | user  |
-        """.trimIndent()
+            """.trimIndent()
         val parsed = FeatureFileParser.parse(feature)
         val adminStep = parsed.allStepInstances.first { it.text.contains("admin") }
         assertTrue(adminStep.scenarioName.contains("admin"))
@@ -251,7 +303,8 @@ class FeatureFileParserTest {
 
     @Test
     fun `quoted literal and outline variable in same position unify to string`() {
-        val feature = """
+        val feature =
+            """
             Feature: F
               Scenario: concrete
                 When I search for "hello"
@@ -260,7 +313,7 @@ class FeatureFileParserTest {
                 Examples:
                   | term  |
                   | world |
-        """.trimIndent()
+            """.trimIndent()
         val parsed = FeatureFileParser.parse(feature)
         // Both should deduplicate to 1 step
         assertEquals(1, parsed.steps.size)

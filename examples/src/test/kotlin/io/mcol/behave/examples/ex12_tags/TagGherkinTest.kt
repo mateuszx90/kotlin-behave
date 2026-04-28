@@ -7,20 +7,23 @@ import io.mcol.behave.kotest.gherkin
 // These additional test classes demonstrate tag filtering with the generated steps val.
 
 /** Runs only `@smoke` scenarios. */
-class TagSmokeGherkinTest : FreeSpec({
-    gherkin("features/12_tags.feature", generatedTagSteps, tags = "@smoke")
-})
+class TagSmokeGherkinTest :
+    FreeSpec({
+        gherkin("features/12_tags.feature", generatedTagSteps, tags = "@smoke")
+    })
 
 /** Runs `@smoke` but excludes `@slow`. */
-class TagQuickGherkinTest : FreeSpec({
-    gherkin("features/12_tags.feature", generatedTagSteps, tags = "@smoke and not @slow")
-})
+class TagQuickGherkinTest :
+    FreeSpec({
+        gherkin("features/12_tags.feature", generatedTagSteps, tags = "@smoke and not @slow")
+    })
 
 /** Complex expression: `(@smoke or @critical) and not @wip`. */
-class TagComplexGherkinTest : FreeSpec({
-    gherkin(
-        "features/12_tags.feature",
-        generatedTagSteps,
-        tags = "(@smoke or @critical) and not @wip",
-    )
-})
+class TagComplexGherkinTest :
+    FreeSpec({
+        gherkin(
+            "features/12_tags.feature",
+            generatedTagSteps,
+            tags = "(@smoke or @critical) and not @wip",
+        )
+    })

@@ -6,7 +6,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class CodeGeneratorTest {
-
     @Test
     fun `escapeStepExpression escapes dots`() {
         assertEquals("I have a collection \\.", CodeGenerator.escapeStepExpression("I have a collection ."))
@@ -46,26 +45,28 @@ class CodeGeneratorTest {
 
     @Test
     fun `renders interface with no-param method`() {
-        val iface = CodeGenerator.GeneratedInterface(
-            packageName = "com.example",
-            interfaceName = "LoginStepsSpec",
-            implementingClassName = "LoginSteps",
-            featurePath = "features/login.feature",
-            generateTest = true,
-            hasScenarioRunner = false,
-            hasBeforeScenario = false,
-            hasAfterScenario = false,
-            steps = listOf(
-                CodeGenerator.GeneratedStep(
-                    methodName = "givenIAmOnTheLoginPage",
-                    params = emptyList(),
-                    stepExpression = "I am on the login page",
-                    originalKeyword = "Given",
-                    originalText = "I am on the login page",
-                )
-            ),
-            rowClasses = emptyList(),
-        )
+        val iface =
+            CodeGenerator.GeneratedInterface(
+                packageName = "com.example",
+                interfaceName = "LoginStepsSpec",
+                implementingClassName = "LoginSteps",
+                featurePath = "features/login.feature",
+                generateTest = true,
+                hasScenarioRunner = false,
+                hasBeforeScenario = false,
+                hasAfterScenario = false,
+                steps =
+                listOf(
+                    CodeGenerator.GeneratedStep(
+                        methodName = "givenIAmOnTheLoginPage",
+                        params = emptyList(),
+                        stepExpression = "I am on the login page",
+                        originalKeyword = "Given",
+                        originalText = "I am on the login page",
+                    ),
+                ),
+                rowClasses = emptyList(),
+            )
         val source = CodeGenerator.render(iface)
         assertTrue(source.contains("interface LoginStepsSpec"))
         assertTrue(source.contains("suspend fun givenIAmOnTheLoginPage()"))
@@ -76,26 +77,28 @@ class CodeGeneratorTest {
 
     @Test
     fun `renders interface with typed params`() {
-        val iface = CodeGenerator.GeneratedInterface(
-            packageName = "com.example",
-            interfaceName = "StepsSpec",
-            implementingClassName = "Steps",
-            featurePath = "features/test.feature",
-            generateTest = true,
-            hasScenarioRunner = false,
-            hasBeforeScenario = false,
-            hasAfterScenario = false,
-            steps = listOf(
-                CodeGenerator.GeneratedStep(
-                    methodName = "whenIEnterAsUsername",
-                    params = listOf(CodeGenerator.StepParam("string", "String")),
-                    stepExpression = "I enter {string} as username",
-                    originalKeyword = "When",
-                    originalText = "I enter {string} as username",
-                )
-            ),
-            rowClasses = emptyList(),
-        )
+        val iface =
+            CodeGenerator.GeneratedInterface(
+                packageName = "com.example",
+                interfaceName = "StepsSpec",
+                implementingClassName = "Steps",
+                featurePath = "features/test.feature",
+                generateTest = true,
+                hasScenarioRunner = false,
+                hasBeforeScenario = false,
+                hasAfterScenario = false,
+                steps =
+                listOf(
+                    CodeGenerator.GeneratedStep(
+                        methodName = "whenIEnterAsUsername",
+                        params = listOf(CodeGenerator.StepParam("string", "String")),
+                        stepExpression = "I enter {string} as username",
+                        originalKeyword = "When",
+                        originalText = "I enter {string} as username",
+                    ),
+                ),
+                rowClasses = emptyList(),
+            )
         val source = CodeGenerator.render(iface)
         assertTrue(source.contains("suspend fun whenIEnterAsUsername(string: String)"))
         assertTrue(source.contains("ctx.whenIEnterAsUsername("))
@@ -103,36 +106,38 @@ class CodeGeneratorTest {
 
     @Test
     fun `rendered source includes package declaration`() {
-        val iface = CodeGenerator.GeneratedInterface(
-            packageName = "io.mcol.test",
-            interfaceName = "FooSpec",
-            implementingClassName = "Foo",
-            featurePath = "features/foo.feature",
-            generateTest = false,
-            hasScenarioRunner = false,
-            hasBeforeScenario = false,
-            hasAfterScenario = false,
-            steps = emptyList(),
-            rowClasses = emptyList(),
-        )
+        val iface =
+            CodeGenerator.GeneratedInterface(
+                packageName = "io.mcol.test",
+                interfaceName = "FooSpec",
+                implementingClassName = "Foo",
+                featurePath = "features/foo.feature",
+                generateTest = false,
+                hasScenarioRunner = false,
+                hasBeforeScenario = false,
+                hasAfterScenario = false,
+                steps = emptyList(),
+                rowClasses = emptyList(),
+            )
         assertTrue(CodeGenerator.render(iface).startsWith("// Generated by kotlin-behave KSP"))
         assertTrue(CodeGenerator.render(iface).contains("package io.mcol.test"))
     }
 
     @Test
     fun `renders generated val and test class when generateTest is true`() {
-        val iface = CodeGenerator.GeneratedInterface(
-            packageName = "com.example",
-            interfaceName = "LoginStepsSpec",
-            implementingClassName = "LoginSteps",
-            featurePath = "features/login.feature",
-            generateTest = true,
-            hasScenarioRunner = false,
-            hasBeforeScenario = false,
-            hasAfterScenario = false,
-            steps = emptyList(),
-            rowClasses = emptyList(),
-        )
+        val iface =
+            CodeGenerator.GeneratedInterface(
+                packageName = "com.example",
+                interfaceName = "LoginStepsSpec",
+                implementingClassName = "LoginSteps",
+                featurePath = "features/login.feature",
+                generateTest = true,
+                hasScenarioRunner = false,
+                hasBeforeScenario = false,
+                hasAfterScenario = false,
+                steps = emptyList(),
+                rowClasses = emptyList(),
+            )
         val source = CodeGenerator.render(iface)
         assertTrue(source.contains("val generatedLoginSteps = LoginStepsSpec.steps { LoginSteps() }"))
         assertTrue(source.contains("class LoginGherkinTest : FreeSpec({"))
@@ -142,18 +147,19 @@ class CodeGeneratorTest {
 
     @Test
     fun `renders per-scenario runner when hasScenarioRunner is true`() {
-        val iface = CodeGenerator.GeneratedInterface(
-            packageName = "com.example",
-            interfaceName = "LoginStepsSpec",
-            implementingClassName = "LoginSteps",
-            featurePath = "features/login.feature",
-            generateTest = true,
-            hasScenarioRunner = true,
-            hasBeforeScenario = false,
-            hasAfterScenario = false,
-            steps = emptyList(),
-            rowClasses = emptyList(),
-        )
+        val iface =
+            CodeGenerator.GeneratedInterface(
+                packageName = "com.example",
+                interfaceName = "LoginStepsSpec",
+                implementingClassName = "LoginSteps",
+                featurePath = "features/login.feature",
+                generateTest = true,
+                hasScenarioRunner = true,
+                hasBeforeScenario = false,
+                hasAfterScenario = false,
+                steps = emptyList(),
+                rowClasses = emptyList(),
+            )
         val source = CodeGenerator.render(iface)
         assertTrue(source.contains("val generatedLoginSteps"))
         assertTrue(source.contains("class LoginGherkinTest : FreeSpec({"))
@@ -163,18 +169,19 @@ class CodeGeneratorTest {
 
     @Test
     fun `skips ScenarioRunner import when hasScenarioRunner is false`() {
-        val iface = CodeGenerator.GeneratedInterface(
-            packageName = "com.example",
-            interfaceName = "LoginStepsSpec",
-            implementingClassName = "LoginSteps",
-            featurePath = "features/login.feature",
-            generateTest = true,
-            hasScenarioRunner = false,
-            hasBeforeScenario = false,
-            hasAfterScenario = false,
-            steps = emptyList(),
-            rowClasses = emptyList(),
-        )
+        val iface =
+            CodeGenerator.GeneratedInterface(
+                packageName = "com.example",
+                interfaceName = "LoginStepsSpec",
+                implementingClassName = "LoginSteps",
+                featurePath = "features/login.feature",
+                generateTest = true,
+                hasScenarioRunner = false,
+                hasBeforeScenario = false,
+                hasAfterScenario = false,
+                steps = emptyList(),
+                rowClasses = emptyList(),
+            )
         val source = CodeGenerator.render(iface)
         assertFalse(source.contains("import io.mcol.behave.steps.ScenarioRunner"))
         assertFalse(source.contains("runScenario"))
@@ -182,18 +189,19 @@ class CodeGeneratorTest {
 
     @Test
     fun `registers Before hook when hasBeforeScenario is true`() {
-        val iface = CodeGenerator.GeneratedInterface(
-            packageName = "com.example",
-            interfaceName = "LoginStepsSpec",
-            implementingClassName = "LoginSteps",
-            featurePath = "features/login.feature",
-            generateTest = true,
-            hasScenarioRunner = false,
-            hasBeforeScenario = true,
-            hasAfterScenario = false,
-            steps = emptyList(),
-            rowClasses = emptyList(),
-        )
+        val iface =
+            CodeGenerator.GeneratedInterface(
+                packageName = "com.example",
+                interfaceName = "LoginStepsSpec",
+                implementingClassName = "LoginSteps",
+                featurePath = "features/login.feature",
+                generateTest = true,
+                hasScenarioRunner = false,
+                hasBeforeScenario = true,
+                hasAfterScenario = false,
+                steps = emptyList(),
+                rowClasses = emptyList(),
+            )
         val source = CodeGenerator.render(iface)
         assertTrue(source.contains("import io.mcol.behave.steps.BeforeScenario"))
         assertTrue(source.contains("(ctx as BeforeScenario).beforeScenario()"))
@@ -202,18 +210,19 @@ class CodeGeneratorTest {
 
     @Test
     fun `registers After hook when hasAfterScenario is true`() {
-        val iface = CodeGenerator.GeneratedInterface(
-            packageName = "com.example",
-            interfaceName = "LoginStepsSpec",
-            implementingClassName = "LoginSteps",
-            featurePath = "features/login.feature",
-            generateTest = true,
-            hasScenarioRunner = false,
-            hasBeforeScenario = false,
-            hasAfterScenario = true,
-            steps = emptyList(),
-            rowClasses = emptyList(),
-        )
+        val iface =
+            CodeGenerator.GeneratedInterface(
+                packageName = "com.example",
+                interfaceName = "LoginStepsSpec",
+                implementingClassName = "LoginSteps",
+                featurePath = "features/login.feature",
+                generateTest = true,
+                hasScenarioRunner = false,
+                hasBeforeScenario = false,
+                hasAfterScenario = true,
+                steps = emptyList(),
+                rowClasses = emptyList(),
+            )
         val source = CodeGenerator.render(iface)
         assertTrue(source.contains("import io.mcol.behave.steps.AfterScenario"))
         assertTrue(source.contains("import io.mcol.behave.steps.ScenarioInfo"))
@@ -223,18 +232,19 @@ class CodeGeneratorTest {
 
     @Test
     fun `registers both hooks when both interfaces present`() {
-        val iface = CodeGenerator.GeneratedInterface(
-            packageName = "com.example",
-            interfaceName = "LoginStepsSpec",
-            implementingClassName = "LoginSteps",
-            featurePath = "features/login.feature",
-            generateTest = true,
-            hasScenarioRunner = false,
-            hasBeforeScenario = true,
-            hasAfterScenario = true,
-            steps = emptyList(),
-            rowClasses = emptyList(),
-        )
+        val iface =
+            CodeGenerator.GeneratedInterface(
+                packageName = "com.example",
+                interfaceName = "LoginStepsSpec",
+                implementingClassName = "LoginSteps",
+                featurePath = "features/login.feature",
+                generateTest = true,
+                hasScenarioRunner = false,
+                hasBeforeScenario = true,
+                hasAfterScenario = true,
+                steps = emptyList(),
+                rowClasses = emptyList(),
+            )
         val source = CodeGenerator.render(iface)
         assertTrue(source.contains(".also { defs ->"))
         assertTrue(source.contains("(ctx as BeforeScenario).beforeScenario()"))
@@ -243,18 +253,19 @@ class CodeGeneratorTest {
 
     @Test
     fun `no hooks registered when neither interface present`() {
-        val iface = CodeGenerator.GeneratedInterface(
-            packageName = "com.example",
-            interfaceName = "LoginStepsSpec",
-            implementingClassName = "LoginSteps",
-            featurePath = "features/login.feature",
-            generateTest = true,
-            hasScenarioRunner = false,
-            hasBeforeScenario = false,
-            hasAfterScenario = false,
-            steps = emptyList(),
-            rowClasses = emptyList(),
-        )
+        val iface =
+            CodeGenerator.GeneratedInterface(
+                packageName = "com.example",
+                interfaceName = "LoginStepsSpec",
+                implementingClassName = "LoginSteps",
+                featurePath = "features/login.feature",
+                generateTest = true,
+                hasScenarioRunner = false,
+                hasBeforeScenario = false,
+                hasAfterScenario = false,
+                steps = emptyList(),
+                rowClasses = emptyList(),
+            )
         val source = CodeGenerator.render(iface)
         assertFalse(source.contains(".also"))
         assertFalse(source.contains("BeforeScenario"))
@@ -263,18 +274,19 @@ class CodeGeneratorTest {
 
     @Test
     fun `skips generated val and test class when generateTest is false`() {
-        val iface = CodeGenerator.GeneratedInterface(
-            packageName = "com.example",
-            interfaceName = "LoginStepsSpec",
-            implementingClassName = "LoginSteps",
-            featurePath = "features/login.feature",
-            generateTest = false,
-            hasScenarioRunner = false,
-            hasBeforeScenario = false,
-            hasAfterScenario = false,
-            steps = emptyList(),
-            rowClasses = emptyList(),
-        )
+        val iface =
+            CodeGenerator.GeneratedInterface(
+                packageName = "com.example",
+                interfaceName = "LoginStepsSpec",
+                implementingClassName = "LoginSteps",
+                featurePath = "features/login.feature",
+                generateTest = false,
+                hasScenarioRunner = false,
+                hasBeforeScenario = false,
+                hasAfterScenario = false,
+                steps = emptyList(),
+                rowClasses = emptyList(),
+            )
         val source = CodeGenerator.render(iface)
         assertFalse(source.contains("val generatedLoginSteps"))
         assertFalse(source.contains("class LoginGherkinTest"))

@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeHostTest
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
 }
@@ -22,9 +24,18 @@ kotlin {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
         }
-        // kotlinx-coroutines-core is needed in jvmMain for runBlocking in SuspendBridge
+        // kotlinx-coroutines-core provides runBlocking used by SuspendBridge on JVM and native.
         jvmMain.dependencies {
             implementation(libs.kotlinx.coroutines.core)
         }
+        nativeMain.dependencies {
+            implementation(libs.kotlinx.coroutines.core)
+        }
     }
+}
+
+// Native host tests (linuxX64, macosX64, macosArm64) read .feature files relative to cwd.
+// iOS simulator tests run in a sandbox and need a different mechanism — not configured here.
+tasks.withType<KotlinNativeHostTest>().configureEach {
+    workingDir = file("src/commonTest/resources").absolutePath
 }

@@ -109,8 +109,8 @@ fun <C> FreeSpec.gherkin(
         // Step-level tree: each step is a leaf test.
         // Hooks are dispatched in beforeContainer/afterContainer at the Scenario: container level.
         beforeContainer { testCase ->
-            if (testCase.name.testName.startsWith("Scenario:")) {
-                val scenarioName = testCase.name.testName.removePrefix("Scenario: ")
+            if (testCase.name.name.startsWith("Scenario:")) {
+                val scenarioName = testCase.name.name.removePrefix("Scenario: ")
                 val scenarioTags = feature.scenarios.firstOrNull { it.name == scenarioName }?.tags ?: emptySet()
                 val info = ScenarioInfo(scenarioName, scenarioTags, ScenarioStatus.Passed)
                 steps.stepBuilder.ctx = steps.factory()
@@ -118,8 +118,8 @@ fun <C> FreeSpec.gherkin(
             }
         }
         afterContainer { (testCase, result) ->
-            if (testCase.name.testName.startsWith("Scenario:")) {
-                val scenarioName = testCase.name.testName.removePrefix("Scenario: ")
+            if (testCase.name.name.startsWith("Scenario:")) {
+                val scenarioName = testCase.name.name.removePrefix("Scenario: ")
                 val scenarioTags = feature.scenarios.firstOrNull { it.name == scenarioName }?.tags ?: emptySet()
                 val status = if (result.isSuccess) ScenarioStatus.Passed else ScenarioStatus.Failed
                 val info = ScenarioInfo(scenarioName, scenarioTags, status)
@@ -156,9 +156,13 @@ fun <C> FreeSpec.gherkin(
     }
 }
 
-private suspend fun <C> dispatchHook(hook: Hook<C>, info: ScenarioInfo, ctx: C) {
+private suspend fun <C> dispatchHook(
+    hook: Hook<C>,
+    info: ScenarioInfo,
+    ctx: C,
+) {
     when (hook) {
-        is Hook.WithCtx            -> hook.block(ctx)
+        is Hook.WithCtx -> hook.block(ctx)
         is Hook.WithScenarioAndCtx -> hook.block(info, ctx)
     }
 }

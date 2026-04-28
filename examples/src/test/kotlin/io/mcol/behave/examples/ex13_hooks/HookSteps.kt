@@ -28,19 +28,19 @@ class HookSteps : HookStepsSpec {
     val db = mutableSetOf<String>()
     val hookLog = mutableListOf<String>()
 
-    override suspend fun whenIInsertAUser(string: String) {
+    override suspend fun iInsertAUser(string: String) {
         db.add(string)
     }
 
-    override suspend fun thenTheUserExistsInTheDatabase(string: String) {
+    override suspend fun theUserExistsInTheDatabase(string: String) {
         check(string in db) { "User '$string' not found" }
     }
 
-    override suspend fun andIDeleteTheUser(string: String) {
+    override suspend fun iDeleteTheUser(string: String) {
         db.remove(string)
     }
 
-    override suspend fun thenTheUserDoesNotExistInTheDatabase(string: String) {
+    override suspend fun theUserDoesNotExistInTheDatabase(string: String) {
         check(string !in db) { "User '$string' should not exist" }
     }
 }
@@ -70,8 +70,8 @@ val hookSteps = steps({ HookSteps() }) {
     }
 
     // Step registrations
-    When("I insert a user {string}") { (s: String) -> ctx.whenIInsertAUser(s) }
-    Then("the user {string} exists in the database") { (s: String) -> ctx.thenTheUserExistsInTheDatabase(s) }
-    And("I delete the user {string}") { (s: String) -> ctx.andIDeleteTheUser(s) }
-    Then("the user {string} does not exist in the database") { (s: String) -> ctx.thenTheUserDoesNotExistInTheDatabase(s) }
+    When("I insert a user {string}") { (s: String) -> ctx.iInsertAUser(s) }
+    Then("the user {string} exists in the database") { (s: String) -> ctx.theUserExistsInTheDatabase(s) }
+    And("I delete the user {string}") { (s: String) -> ctx.iDeleteTheUser(s) }
+    Then("the user {string} does not exist in the database") { (s: String) -> ctx.theUserDoesNotExistInTheDatabase(s) }
 }

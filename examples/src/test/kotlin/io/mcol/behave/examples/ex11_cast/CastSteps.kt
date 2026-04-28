@@ -26,12 +26,11 @@ class CastSteps : CastStepsSpec {
     private var portions = 0
 
     // @BehaveCast on the parameter: KSP widens {int} → {double} and generates .toInt()
-    override suspend fun whenICreateARecipeWithPortions(@BehaveCast int: Int) {
+    override suspend fun iCreateARecipeWithPortions(@BehaveCast int: Int) {
         portions = int
     }
 
-    override suspend fun thenTheRecipeHasPortions(@BehaveCast int: Int) {
+    override suspend fun theRecipeHasPortions(@BehaveCast int: Int) {
         check(portions == int) { "Expected $int portions, got $portions" }
     }
 }
-

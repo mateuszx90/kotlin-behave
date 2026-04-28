@@ -1,0 +1,51 @@
+build:
+  maxIssues: 0
+
+complexity:
+  LongMethod:
+    threshold: 150
+  LongParameterList:
+    functionThreshold: 8
+    constructorThreshold: 10
+  TooManyFunctions:
+    thresholdInFiles: 30
+    thresholdInClasses: 20
+  CyclomaticComplexMethod:
+    threshold: 30
+  NestedBlockDepth:
+    threshold: 6
+  ComplexCondition:
+    threshold: 5
+
+style:
+  MaxLineLength:
+    maxLineLength: 160
+    excludeCommentStatements: true
+  WildcardImport:
+    active: false
+  MagicNumber:
+    active: false
+  ReturnCount:
+    max: 5
+  ForbiddenComment:
+    active: false
+  LoopWithTooManyJumpStatements:
+    maxJumpCount: 3
+  ThrowsCount:
+    max: 3
+  UnusedPrivateProperty:
+    active: false
+
+  UnusedParameter:
+    active: false
+
+naming:
+  FunctionNaming:
+    functionPattern: '[a-zA-Z][a-zA-Z0-9]*'
+
+exceptions:
+  TooGenericExceptionCaught:
+    active: false
+  SwallowedException:
+    active: false
+

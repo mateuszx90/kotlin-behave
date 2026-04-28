@@ -52,4 +52,6 @@ annotation class BehaveType(
  */
 @Target(AnnotationTarget.VALUE_PARAMETER)
 @Retention(AnnotationRetention.SOURCE)
-annotation class BehaveCast(val lossy: Boolean = true)
+annotation class BehaveCast(
+    val lossy: Boolean = true,
+)

@@ -19,16 +19,15 @@ class CollisionSteps : CollisionStepsSpec {
     private var cartItems = 0
     private var wishlistItems = 0
 
-    override suspend fun givenIHaveItemsInTheCart(int: Int) {
+    override suspend fun iHaveItemsInTheCart(int: Int) {
         cartItems = int
     }
 
-    override suspend fun andIHaveItemsInMyWishlist(int: Int) {
+    override suspend fun iHaveItemsInMyWishlist(int: Int) {
         wishlistItems = int
     }
 
-    override suspend fun thenIHaveItemsTotal(int: Int) {
+    override suspend fun iHaveItemsTotal(int: Int) {
         assertEquals(int, cartItems + wishlistItems)
     }
 }
-

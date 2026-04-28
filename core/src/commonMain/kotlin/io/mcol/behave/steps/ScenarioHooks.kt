@@ -21,7 +21,10 @@ interface AfterScenario {
  * Convenience interface combining [BeforeScenario] and [AfterScenario]
  * with default no-op implementations. Override only what you need.
  */
-interface ScenarioHooks : BeforeScenario, AfterScenario {
+interface ScenarioHooks :
+    BeforeScenario,
+    AfterScenario {
     override suspend fun beforeScenario() {}
+
     override suspend fun afterScenario(info: ScenarioInfo) {}
 }
