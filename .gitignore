@@ -1,0 +1,12 @@
+.gradle/
+build/
+.idea/
+*.iml
+local.properties
+/.kotlin/
+.gitnexus
+.claude
+CLAUDE.md
+AGENTS.md
+docs/licenses/*.json
+docs/licenses/*.jar/

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "▸ Running spotless check..."
+./gradlew spotlessCheck --quiet
+
+echo "▸ Running detekt..."
+./gradlew detekt --quiet
+
+echo "▸ Running build and tests..."
+./gradlew jvmTest :examples:test --quiet
+
+echo "✓ All checks passed."
