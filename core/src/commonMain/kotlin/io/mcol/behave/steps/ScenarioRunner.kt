@@ -31,10 +31,10 @@ interface ScenarioRunner {
      *
      * @param ctx The Steps instance (fresh per scenario). Cast to your interface
      *            (e.g. `HasAppRobot`) to inject dependencies.
-     * @param run Blocking lambda that executes the scenario. Call exactly once.
+     * @param run Suspend lambda that executes the scenario. Call exactly once.
      */
-    fun runScenario(
+    suspend fun runScenario(
         ctx: Any,
-        run: () -> Unit,
+        run: suspend () -> Unit,
     )
 }
