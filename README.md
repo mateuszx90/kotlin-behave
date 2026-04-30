@@ -334,4 +334,13 @@ See [`skills/bdd/SKILL.md`](skills/bdd/SKILL.md) for the full skill content.
 
 ## License
 
-MIT
+`kotlin-behave` is licensed under the [Apache License 2.0](LICENSE).
+
+For attribution to upstream projects see [NOTICE](NOTICE), and for the full
+inventory of third-party dependencies and their licenses see
+[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). To regenerate the inventory:
+
+```
+./gradlew checkLicense
+open build/reports/dependency-license/third-party-licenses.html
+```

@@ -1,9 +1,27 @@
+import com.github.jk1.license.filter.DependencyFilter
+import com.github.jk1.license.filter.LicenseBundleNormalizer
+import com.github.jk1.license.render.InventoryHtmlReportRenderer
+import com.github.jk1.license.render.ReportRenderer
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform) apply false
     alias(libs.plugins.kotlin.jvm) apply false
     alias(libs.plugins.detekt)
     alias(libs.plugins.spotless)
+    alias(libs.plugins.license.report)
 }
+
+licenseReport {
+    // Aggregate every subproject so the report covers the whole repo, not just root.
+    projects = allprojects.toTypedArray()
+    allowedLicensesFile = file("$rootDir/allowed-licenses.json")
+    // Normalise common license-name variants (e.g. "Apache 2.0" vs "Apache License, Version 2.0").
+    filters = arrayOf<DependencyFilter>(LicenseBundleNormalizer())
+    renderers = arrayOf<ReportRenderer>(InventoryHtmlReportRenderer("third-party-licenses.html"))
+}
+
+// `checkLicense` is intentionally NOT wired into the `check` lifecycle. Run it on demand
+// (or from a release/CI workflow): `./gradlew checkLicense`. Local `check` stays fast.
 
 detekt {
     buildUponDefaultConfig = true
