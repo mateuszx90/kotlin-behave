@@ -5,3 +5,7 @@ build/
 local.properties
 /.kotlin/
 .gitnexus
+/.kotlin/
+.claude
+CLAUDE.md
+AGENTS.md
