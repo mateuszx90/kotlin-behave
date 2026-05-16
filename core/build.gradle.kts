@@ -2,6 +2,7 @@ import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeHostTest
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
+    id("behave.publish")
 }
 
 group = "io.mcol.kotlin-behave"

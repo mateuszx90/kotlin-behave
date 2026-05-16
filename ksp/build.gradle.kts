@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    id("behave.publish")
 }
 
 group = "io.mcol.kotlin-behave"

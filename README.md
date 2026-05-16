@@ -309,12 +309,7 @@ then interfaces, then implementation.
 ### Install the plugin
 
 ```bash
-# Option 1: Add as additional directory
 claude --add-dir /path/to/kotlin-behave
-
-# Option 2: Install from marketplace (when published)
-/plugin marketplace add mcol/kotlin-behave
-/plugin install kotlin-behave
 ```
 
 ### Use the skill
@@ -338,9 +333,9 @@ See [`skills/bdd/SKILL.md`](skills/bdd/SKILL.md) for the full skill content.
 
 For attribution to upstream projects see [NOTICE](NOTICE), and for the full
 inventory of third-party dependencies and their licenses see
-[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). To regenerate the inventory:
+[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) or the
+[HTML report](docs/licenses/third-party-licenses.html). To regenerate the inventory:
 
 ```
 ./gradlew checkLicense
-open build/reports/dependency-license/third-party-licenses.html
 ```

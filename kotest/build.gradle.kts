@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotest)
+    id("behave.publish")
 }
 
 group = "io.mcol.kotlin-behave"

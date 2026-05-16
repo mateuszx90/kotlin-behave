@@ -15,6 +15,7 @@ licenseReport {
     // Aggregate every subproject so the report covers the whole repo, not just root.
     projects = allprojects.toTypedArray()
     allowedLicensesFile = file("$rootDir/allowed-licenses.json")
+    outputDir = "$rootDir/docs/licenses"
     // Normalise common license-name variants (e.g. "Apache 2.0" vs "Apache License, Version 2.0").
     filters = arrayOf<DependencyFilter>(LicenseBundleNormalizer())
     renderers = arrayOf<ReportRenderer>(InventoryHtmlReportRenderer("third-party-licenses.html"))
