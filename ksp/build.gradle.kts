@@ -10,6 +10,7 @@ dependencies {
     implementation(project(":annotations"))
     implementation(project(":core"))
     implementation(libs.ksp.api)
+    compileOnly(gradleApi())
 
     testImplementation(kotlin("test"))
 }

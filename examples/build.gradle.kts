@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
     id("com.google.devtools.ksp") version libs.versions.ksp.get()
+    id("behave.feature-inputs")
 }
 
 group = "io.mcol.kotlin-behave"

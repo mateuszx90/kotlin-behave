@@ -336,4 +336,256 @@ class FeatureFileParserTest {
         assertTrue(patterns["boolean"]!!.matches("true"))
         assertFalse(patterns["boolean"]!!.matches("True"))
     }
+
+    // --- Malformed feature file error handling ---
+
+    @Test
+    fun `reports error when Feature keyword is missing`() {
+        val feature =
+            """
+            Scenario: S
+              Given something
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertTrue(parsed.hasErrors)
+        assertTrue(parsed.errors.any { it.message.contains("Missing Feature:") })
+    }
+
+    @Test
+    fun `reports error when file is empty`() {
+        val parsed = FeatureFileParser.parse("")
+        assertTrue(parsed.hasErrors)
+        assertTrue(parsed.errors.any { it.message.contains("Missing Feature:") })
+    }
+
+    @Test
+    fun `reports error when file contains only whitespace`() {
+        val parsed = FeatureFileParser.parse("   \n\n   ")
+        assertTrue(parsed.hasErrors)
+        assertTrue(parsed.errors.any { it.message.contains("Missing Feature:") })
+    }
+
+    @Test
+    fun `reports error when step appears before any Scenario or Background`() {
+        val feature =
+            """
+            Feature: F
+              Given I am orphaned
+              Scenario: S
+                When I do something
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertTrue(parsed.hasErrors)
+        assertTrue(parsed.errors.any { it.message.contains("I am orphaned") })
+    }
+
+    @Test
+    fun `reports single error for consecutive orphaned steps under Feature`() {
+        val feature =
+            """
+            Feature: Basic steps
+
+                Given I am on the login page
+                When I enter valid credentials
+                Then I see the dashboard
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertTrue(parsed.hasErrors)
+        assertEquals(1, parsed.errors.size)
+        assertTrue(parsed.errors[0].message.contains("I am on the login page"))
+    }
+
+    @Test
+    fun `reports error when step appears between Scenario blocks`() {
+        val feature =
+            """
+            Feature: F
+              Scenario: first
+                When I do something
+              Given I am orphaned between scenarios
+              Scenario: second
+                When I do another thing
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertTrue(parsed.hasErrors)
+        assertTrue(parsed.errors.any { it.message.contains("I am orphaned between scenarios") })
+    }
+
+    @Test
+    fun `reports one error per orphaned group not per step`() {
+        val feature =
+            """
+            Feature: F
+              Scenario: first
+                When I do something
+              Given orphan one
+              Given orphan two
+              Scenario: second
+                When I do another thing
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertEquals(1, parsed.errors.size)
+        assertTrue(parsed.errors[0].message.contains("orphan one"))
+    }
+
+    @Test
+    fun `reports separate errors for separate orphaned groups`() {
+        val feature =
+            """
+            Feature: F
+              Scenario: first
+                When I do something
+              Given orphan group one
+              Scenario: second
+                When I do another thing
+              Given orphan group two
+              Scenario: third
+                When I finish
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertEquals(2, parsed.errors.size)
+        assertTrue(parsed.errors.any { it.message.contains("orphan group one") })
+        assertTrue(parsed.errors.any { it.message.contains("orphan group two") })
+    }
+
+    @Test
+    fun `error includes correct line number`() {
+        val feature =
+            """
+            Feature: F
+              Scenario: first
+                When I do something
+              Given I am orphaned between scenarios
+              Scenario: second
+                When I do another thing
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        val error = parsed.errors.first { it.message.contains("I am orphaned") }
+        assertEquals(4, error.line)
+    }
+
+    @Test
+    fun `feature with only Background and no Scenario is valid`() {
+        val feature =
+            """
+            Feature: F
+              Background:
+                Given I am set up
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertFalse(parsed.hasErrors)
+        assertEquals(1, parsed.steps.size)
+        assertEquals("Given", parsed.steps[0].keyword)
+    }
+
+    @Test
+    fun `feature with no scenarios produces empty steps`() {
+        val feature = "Feature: Empty feature"
+        val parsed = FeatureFileParser.parse(feature)
+        assertFalse(parsed.hasErrors)
+        assertEquals(0, parsed.steps.size)
+    }
+
+    // --- Malformed keyword syntax (inspired by common Gherkin mistakes) ---
+
+    @Test
+    fun `reports error when Feature keyword is missing colon`() {
+        // "Feature  Shopping cart" — missing colon, looks like a keyword but isn't
+        val feature =
+            """
+            Feature  Shopping cart
+              Scenario: Add item
+                Given the cart is empty
+                When I add a product
+                Then the cart has one item
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertTrue(parsed.hasErrors)
+        assertTrue(parsed.errors.any { it.message.contains("Missing Feature:") })
+    }
+
+    @Test
+    fun `reports orphaned steps when Scenario keyword is missing colon`() {
+        // "Scenario  Login" — missing colon, section not recognized, steps become orphaned
+        val feature =
+            """
+            Feature: User authentication
+              Scenario  Login attempt
+                Given the user is on the login page
+                When they submit valid credentials
+                Then they are redirected to the dashboard
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertTrue(parsed.hasErrors)
+        assertTrue(parsed.errors.any { it.message.contains("the user is on the login page") })
+    }
+
+    @Test
+    fun `reports error for file containing only plain text`() {
+        val feature = "This is not a feature file at all"
+        val parsed = FeatureFileParser.parse(feature)
+        assertTrue(parsed.hasErrors)
+        assertTrue(parsed.errors.any { it.message.contains("Missing Feature:") })
+    }
+
+    @Test
+    fun `silently ignores lines with unrecognised keywords`() {
+        // "GivenTheUserIs..." — starts similarly but is not a Gherkin keyword
+        val feature =
+            """
+            Feature: Product catalogue
+              Scenario: Browse products
+                Given the catalogue is loaded
+                GivenTheUserScrollsDown to the bottom
+                Then all products are visible
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertFalse(parsed.hasErrors)
+        // "GivenTheUserScrollsDown" is not a keyword — ignored, only 2 real steps
+        assertEquals(2, parsed.steps.size)
+    }
+
+    @Test
+    fun `feature with only comments is valid with no steps`() {
+        val feature =
+            """
+            # This file is intentionally left blank
+            # Author: test suite
+            Feature: Placeholder
+            # TODO: add scenarios later
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertFalse(parsed.hasErrors)
+        assertEquals(0, parsed.steps.size)
+    }
+
+    @Test
+    fun `reports orphaned steps when Background keyword is missing colon`() {
+        val feature =
+            """
+            Feature: Order processing
+              Background  Common setup
+                Given the inventory is stocked
+              Scenario: Place order
+                When I submit an order
+                Then the order is confirmed
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertTrue(parsed.hasErrors)
+        assertTrue(parsed.errors.any { it.message.contains("the inventory is stocked") })
+    }
+
+    @Test
+    fun `missing Feature error points to first Scenario line`() {
+        val feature =
+            """
+            Scenario: Checkout flow
+              Given items are in the basket
+              When payment is completed
+              Then an order confirmation is sent
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertTrue(parsed.hasErrors)
+        assertEquals(1, parsed.errors[0].line) // first Scenario: is on line 1
+    }
 }
