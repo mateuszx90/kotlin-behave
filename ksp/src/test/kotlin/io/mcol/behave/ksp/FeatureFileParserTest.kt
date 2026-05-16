@@ -336,9 +336,9 @@ class FeatureFileParserTest {
         assertTrue(patterns["boolean"]!!.matches("true"))
         assertFalse(patterns["boolean"]!!.matches("True"))
     }
+}
 
-    // --- Malformed feature file error handling ---
-
+class FeatureFileParserErrorTest {
     @Test
     fun `reports error when Feature keyword is missing`() {
         val feature =
@@ -587,5 +587,256 @@ class FeatureFileParserTest {
         val parsed = FeatureFileParser.parse(feature)
         assertTrue(parsed.hasErrors)
         assertEquals(1, parsed.errors[0].line) // first Scenario: is on line 1
+    }
+}
+
+class FeatureFileParserOutlineTest {
+    @Test
+    fun `scenario outline without examples reports error`() {
+        val feature =
+            """
+            Feature: Notifications
+              Scenario Outline: Send alert for <event>
+                Given the system detects <event>
+                When the alert engine runs
+                Then a notification is sent
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertTrue(parsed.hasErrors)
+        val error = parsed.errors.first()
+        assertTrue(error.message.contains("Send alert for <event>"))
+        assertTrue(error.message.contains("Examples:"))
+    }
+
+    @Test
+    fun `scenario outline without examples suggests variable columns`() {
+        val feature =
+            """
+            Feature: Payments
+              Scenario Outline: Pay <amount> with <method>
+                Given the user has <amount> in their account
+                When they pay using <method>
+                Then the balance decreases by <amount>
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertTrue(parsed.hasErrors)
+        val msg = parsed.errors.first().message
+        assertTrue(msg.contains("| amount | method |"))
+        assertTrue(msg.contains("| value | value |"))
+    }
+
+    @Test
+    fun `scenario outline without examples falls back to empty pipes when no variables`() {
+        val feature =
+            """
+            Feature: Debug
+              Scenario Outline: Generic outline
+                Given a step with no placeholders
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertTrue(parsed.hasErrors)
+        val msg = parsed.errors.first().message
+        assertTrue(msg.contains("| |"))
+    }
+
+    @Test
+    fun `scenario outline with examples does not report error`() {
+        val feature =
+            """
+            Feature: Search
+              Scenario Outline: Search for <term>
+                Given the search bar is open
+                When I type "<term>"
+                Then results for "<term>" appear
+                Examples:
+                  | term   |
+                  | Kotlin |
+                  | Java   |
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertFalse(parsed.hasErrors)
+    }
+
+    @Test
+    fun `two outlines both missing examples report two errors`() {
+        val feature =
+            """
+            Feature: Reports
+              Scenario Outline: Export <format>
+                Given a report is ready
+                When I export as <format>
+                Then a file is downloaded
+              Scenario Outline: Filter by <status>
+                Given reports are listed
+                When I filter by <status>
+                Then only <status> reports appear
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertEquals(2, parsed.errors.size)
+        assertTrue(parsed.errors[0].message.contains("Export <format>"))
+        assertTrue(parsed.errors[1].message.contains("Filter by <status>"))
+    }
+
+    @Test
+    fun `outline with examples followed by outline without examples reports one error`() {
+        val feature =
+            """
+            Feature: Imports
+              Scenario Outline: Import <type> file
+                Given a file of type <type>
+                When I import it
+                Then data is loaded
+                Examples:
+                  | type |
+                  | csv  |
+              Scenario Outline: Validate <field>
+                Given the form is open
+                When I leave <field> empty
+                Then a validation error appears
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertEquals(1, parsed.errors.size)
+        assertTrue(parsed.errors.first().message.contains("Validate <field>"))
+    }
+
+    @Test
+    fun `examples table with empty header reports missing columns for step variables`() {
+        val feature =
+            """
+            Feature: Cakes
+              Scenario Template: Test
+                When I have a <count> cake
+                Examples:
+                  | |
+                  | |
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertTrue(parsed.hasErrors)
+        val msg = parsed.errors.first().message
+        assertTrue(msg.contains("<count>"))
+        assertTrue(msg.contains("missing columns"))
+    }
+
+    @Test
+    fun `examples table missing one variable reports error with that variable`() {
+        val feature =
+            """
+            Feature: Orders
+              Scenario Outline: Place an order
+                Given the shop is open
+                When I order <quantity> of <item>
+                Then my cart has <quantity> items
+                Examples:
+                  | item  |
+                  | apple |
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertTrue(parsed.hasErrors)
+        val msg = parsed.errors.first().message
+        assertTrue(msg.contains("<quantity>"))
+        assertFalse(msg.contains("<item>"))
+    }
+
+    @Test
+    fun `examples table with all variables present does not report error`() {
+        val feature =
+            """
+            Feature: Orders
+              Scenario Outline: Order <item> with <quantity> units
+                Given the shop is open
+                When I order <quantity> of <item>
+                Examples:
+                  | item  | quantity |
+                  | apple | 3        |
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertFalse(parsed.hasErrors)
+    }
+
+    @Test
+    fun `scenario outline without name reports error`() {
+        val feature =
+            """
+            Feature: Misc
+              Scenario Outline:
+                Given something
+                Examples:
+                  | col |
+                  | val |
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertTrue(parsed.hasErrors)
+        assertTrue(parsed.errors.any { it.message.contains("Scenario Outline:") && it.message.contains("missing a name") })
+    }
+
+    @Test
+    fun `scenario template without name reports error`() {
+        val feature =
+            """
+            Feature: Misc
+              Scenario Template:
+                Given something
+                Examples:
+                  | col |
+                  | val |
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertTrue(parsed.hasErrors)
+        assertTrue(parsed.errors.any { it.message.contains("Scenario Template:") && it.message.contains("missing a name") })
+    }
+
+    @Test
+    fun `scenario template is alias for scenario outline`() {
+        val feature =
+            """
+            Feature: Retries
+              Scenario Template: Retry <operation> up to <times> times
+                Given the service is flaky
+                When I attempt <operation>
+                Then it succeeds within <times> retries
+                Examples:
+                  | operation | times |
+                  | upload    | 3     |
+                  | sync      | 5     |
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertFalse(parsed.hasErrors)
+        assertTrue(parsed.allStepInstances.any { it.scenarioName.contains("upload") })
+    }
+
+    @Test
+    fun `scenario template without examples reports error`() {
+        val feature =
+            """
+            Feature: Retries
+              Scenario Template: Retry <operation>
+                Given the service is flaky
+                When I attempt <operation>
+                Then it succeeds
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertTrue(parsed.hasErrors)
+        val msg = parsed.errors.first().message
+        assertTrue(msg.contains("Retry <operation>"))
+        assertTrue(msg.contains("| operation |"))
+    }
+
+    @Test
+    fun `scenario outline missing examples error points to outline line number`() {
+        val feature =
+            """
+            Feature: Accounts
+              Scenario: Normal login
+                Given the login page is open
+                When I submit valid credentials
+                Then I am logged in
+              Scenario Outline: Login as <role>
+                Given I am a <role> user
+                When I log in
+                Then I see the <role> dashboard
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertTrue(parsed.hasErrors)
+        assertEquals(6, parsed.errors.first().line) // "Scenario Outline:" is on line 6
     }
 }

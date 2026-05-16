@@ -73,6 +73,8 @@ internal object FeatureFileParser {
         var inOrphanedGroup = false // true while consecutive orphaned steps are being skipped
         var inOutline = false
         var outlineName = ""
+        var outlineLineNumber = 0
+        var outlineHadExamples = false
         var outlineSteps = mutableListOf<Pair<String, String>>() // keyword, text
         var lastRealKeyword = "" // tracks last Given/When/Then for And/But resolution
 
@@ -84,24 +86,38 @@ internal object FeatureFileParser {
 
             // Track current scenario/background name and outline context
             when {
-                line.startsWith("Scenario Outline:") -> {
+                line.startsWith("Scenario Outline:") || line.startsWith("Scenario Template:") -> {
+                    missingExamplesErrorIfNeeded(inOutline, outlineHadExamples, outlineSteps, outlineLineNumber, outlineName)
+                        ?.let { errors.add(it) }
+                    val keyword = if (line.startsWith("Scenario Outline:")) "Scenario Outline:" else "Scenario Template:"
+                    outlineName = line.removePrefix(keyword).trim()
+                    if (outlineName.isEmpty()) {
+                        errors.add(ParseError(lineNumber, "$keyword declaration is missing a name"))
+                    }
                     inOutline = true
+                    outlineHadExamples = false
                     inOrphanedGroup = false
-                    outlineName = line.removePrefix("Scenario Outline:").trim()
+                    outlineLineNumber = lineNumber
                     outlineSteps = mutableListOf()
-                    currentScenarioName = outlineName
+                    currentScenarioName = outlineName.ifEmpty { keyword.trimEnd(':') }
                     currentSectionIndent = lineIndent
                     lastRealKeyword = ""
                 }
                 line.startsWith("Scenario:") -> {
+                    missingExamplesErrorIfNeeded(inOutline, outlineHadExamples, outlineSteps, outlineLineNumber, outlineName)
+                        ?.let { errors.add(it) }
                     inOutline = false
+                    outlineHadExamples = false
                     inOrphanedGroup = false
                     currentScenarioName = line.removePrefix("Scenario:").trim()
                     currentSectionIndent = lineIndent
                     lastRealKeyword = ""
                 }
                 line.startsWith("Background:") -> {
+                    missingExamplesErrorIfNeeded(inOutline, outlineHadExamples, outlineSteps, outlineLineNumber, outlineName)
+                        ?.let { errors.add(it) }
                     inOutline = false
+                    outlineHadExamples = false
                     inOrphanedGroup = false
                     currentScenarioName = "Background"
                     currentSectionIndent = lineIndent
@@ -111,7 +127,8 @@ internal object FeatureFileParser {
 
             // Expand Scenario Outline Examples into allRawSteps
             if (line.startsWith("Examples:")) {
-                expandExamples(lines, i, outlineSteps, outlineName, allRawSteps)
+                outlineHadExamples = true
+                expandExamples(lines, i, outlineSteps, outlineName, allRawSteps, errors, lineNumber)
                 i++
                 continue
             }
@@ -144,6 +161,10 @@ internal object FeatureFileParser {
             }
             i++
         }
+
+        // Check last outline in file
+        missingExamplesErrorIfNeeded(inOutline, outlineHadExamples, outlineSteps, outlineLineNumber, outlineName)
+            ?.let { errors.add(it) }
 
         // Deduplicate by normalised text
         val seen = mutableSetOf<String>()
@@ -178,6 +199,8 @@ internal object FeatureFileParser {
         outlineSteps: List<Pair<String, String>>,
         outlineName: String,
         allRawSteps: MutableList<RawStep>,
+        errors: MutableList<ParseError>,
+        examplesLineNumber: Int,
     ) {
         var j = startIndex + 1
         var header = emptyList<String>()
@@ -194,6 +217,22 @@ internal object FeatureFileParser {
                 else -> break
             }
         }
+
+        val variables = outlineSteps
+            .flatMap { (_, text) -> Regex("<([^>]+)>").findAll(text).map { it.groupValues[1] } }
+            .distinct()
+        val missing = variables.filter { it !in header }
+        if (missing.isNotEmpty()) {
+            errors.add(
+                ParseError(
+                    examplesLineNumber,
+                    "Examples: table for Scenario Outline '$outlineName' is missing columns for: " +
+                        missing.joinToString { "<$it>" },
+                ),
+            )
+            return
+        }
+
         for (row in dataRows) {
             val substitutions = header.zip(row).toMap()
             val expandedName = substitutions.entries.fold(outlineName) { name, (variable, value) ->
@@ -227,6 +266,33 @@ internal object FeatureFileParser {
             }
         }
         return hasTable to tableColumns
+    }
+
+    private fun missingExamplesErrorIfNeeded(
+        inOutline: Boolean,
+        hadExamples: Boolean,
+        steps: List<Pair<String, String>>,
+        lineNumber: Int,
+        name: String,
+    ): ParseError? = if (inOutline && !hadExamples) {
+        val variables = steps
+            .flatMap { (_, text) -> Regex("<([^>]+)>").findAll(text).map { it.groupValues[1] } }
+            .distinct()
+        val suggestion = buildString {
+            appendLine()
+            appendLine("    Examples:")
+            if (variables.isNotEmpty()) {
+                append("      | ${variables.joinToString(" | ")} |")
+                appendLine()
+                append("      | ${variables.joinToString(" | ") { "value" }} |")
+            } else {
+                appendLine("      | |")
+                append("      | |")
+            }
+        }
+        ParseError(lineNumber, "Scenario Outline '$name' has no Examples: block. Add:$suggestion")
+    } else {
+        null
     }
 
     private fun parseTableRow(line: String): List<String> = line
