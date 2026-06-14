@@ -1,0 +1,61 @@
+version: 2
+updates:
+  # JavaScript/Node dependencies (Kotlin/JS)
+  - package-ecosystem: npm
+    directory: "/kotlin-js-store"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "03:00"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps):"
+    reviewers:
+      - mateuszx90
+    allow:
+      - dependency-type: direct
+      - dependency-type: indirect
+
+  # Gradle dependencies
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "03:00"
+    open-pull-requests-limit: 5
+    pull-request-branch-name:
+      separator: "/"
+    commit-message:
+      prefix: "chore(deps):"
+    reviewers:
+      - mateuszx90
+    allow:
+      - dependency-type: direct
+      - dependency-type: indirect
+    ignore:
+      # Ignore major versions for non-critical deps to reduce noise
+      - dependency-name: "com.gradle.*"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "03:00"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci:"
+    reviewers:
+      - mateuszx90
+
+  # Kotlin/Java security updates
+  - package-ecosystem: maven
+    directory: "/"
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore(deps):"
