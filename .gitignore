@@ -10,3 +10,5 @@ CLAUDE.md
 AGENTS.md
 docs/licenses/*.json
 docs/licenses/*.jar/
+NOTES.md
+kotlin-js-store/
