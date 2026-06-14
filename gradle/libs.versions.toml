@@ -5,7 +5,7 @@ kotest = "6.1.11"
 kotest-plugin = "6.1.11"
 ksp = "2.3.0"
 detekt = "1.23.7"
-spotless = "7.0.2"
+spotless = "8.6.0"
 license-report = "2.9"
 
 [plugins]
