@@ -265,18 +265,75 @@ class TodoSteps : TodoStepsSpec { /* ... */ }
 See [KSP documentation](docs/ksp.md) for all annotation options, type mappings, and
 DataTable handling.
 
+## Sharing Steps Across Features
+
+When the same Gherkin step text appears in two or more `.feature` files, kotlin-behave
+**errors at KSP time** unless you opt in via one of two mechanisms. Silent duplication is
+never allowed — you must make a deliberate choice.
+
+### `@StepsMixin` — write the body once, inherit everywhere
+
+Declare an interface with `@StepsMixin` and a default body. Any generated `*StepsSpec`
+whose step signature matches a mixin method auto-extends the mixin, so implementing
+classes don't redeclare those methods.
+
+```kotlin
+@StepsMixin
+interface SessionMixin {
+    val session: AppSession                                       // abstract — class provides it
+
+    suspend fun theAppIsStarted()             = run { session.started = true }
+    suspend fun iLogInAs(string: String)      = run { session.currentUser = string }
+}
+
+@BehaveFeature("features/settings.feature")
+class SettingsSteps : SettingsStepsSpec {                         // auto-extends SessionMixin
+    override val session = AppSession()
+    // theAppIsStarted() and iLogInAs() are inherited from the mixin — no redeclaration
+}
+```
+
+Multiple mixins can share the same abstract `val` — a single override satisfies them all.
+A class can still override a mixin default locally for feature-specific behavior. Two
+mixins declaring the same `(methodName, paramTypes)` produces a build-failing error
+naming both interfaces.
+
+### `@DivergentStep` — different bodies per feature
+
+When the same step text needs intentionally different bodies (e.g., web seeds a session
+cookie, mobile calls a debug auto-login), mark **every** diverging override:
+
+```kotlin
+class WebSearchSteps : WebSearchStepsSpec {
+    @DivergentStep
+    override suspend fun theUserIsLoggedIn() { /* seed cookie */ }
+}
+
+class MobileSearchSteps : MobileSearchStepsSpec {
+    @DivergentStep
+    override suspend fun theUserIsLoggedIn() { /* debug menu */ }
+}
+```
+
+Forget to annotate even one of them and the processor errors with the list of every
+class that declares the step plus the two suggested fixes.
+
+See [example 18](examples/src/test/kotlin/io/mcol/behave/examples/ex18_shared_mixin/) for
+mixin composition and [example 19](examples/src/test/kotlin/io/mcol/behave/examples/ex19_divergent_steps/)
+for divergent steps.
+
 ## Documentation
 
 | Document | Content |
 |----------|---------|
 | [Core API](docs/core.md) | Step builder DSL, type registry, hooks, custom parameter types, tag filtering |
 | [Kotest Integration](docs/kotest.md) | FreeSpec wiring, per-scenario setup, step-level reporting, tag filtering |
-| [KSP Code Generation](docs/ksp.md) | `@BehaveFeature`, `@BehaveType`, `@BehaveCast`, generated interface format |
-| [Examples](examples/README.md) | 15 runnable examples covering every feature |
+| [KSP Code Generation](docs/ksp.md) | `@BehaveFeature`, `@BehaveType`, `@BehaveCast`, `@StepsMixin`, `@DivergentStep`, generated interface format |
+| [Examples](examples/README.md) | 19 runnable examples covering every feature |
 
 ## Examples
 
-The [`examples/`](examples/) module contains 15 runnable examples:
+The [`examples/`](examples/) module contains 19 runnable examples:
 
 ```bash
 ./gradlew :examples:test
@@ -299,6 +356,10 @@ The [`examples/`](examples/) module contains 15 runnable examples:
 | 13 | Hooks | Before/After with ScenarioInfo |
 | 14 | Name collisions | Numeric suffix resolution |
 | 15 | Full integration | Everything combined |
+| 16 | Recipes with shared steps | `@StepsMixin` consumed across two features (recipes side) |
+| 17 | Checkout with shared steps | Same mixin consumed from a second feature (checkout side) |
+| 18 | Multi-mixin composition | Two `@StepsMixin` interfaces sharing one `val session` |
+| 19 | Divergent steps | `@DivergentStep` for intentionally different bodies per feature |
 
 ## Claude Code BDD Skill
 
