@@ -56,6 +56,22 @@ spotless {
     }
 }
 
+// CVE pin — opentelemetry-api ≤ 1.61.0 is vulnerable to unbounded memory / CPU
+// allocation during W3C Baggage parsing. The vuln is brought in transitively by
+// org.jetbrains.kotlin:swift-export-embeddable (iOS targets). Kotlin's own roadmap
+// hasn't bumped the dependency yet, so pin here. Drop once swift-export-embeddable
+// ships with opentelemetry-api ≥ 1.62.0.
+allprojects {
+    configurations.all {
+        resolutionStrategy.eachDependency {
+            if (requested.group == "io.opentelemetry" && requested.name == "opentelemetry-api") {
+                useVersion("1.62.0")
+                because("CVE: unbounded baggage memory/CPU — patched in 1.62.0")
+            }
+        }
+    }
+}
+
 tasks.register("installGitHooks") {
     description = "Configures git to use .githooks/ directory"
     doLast {
