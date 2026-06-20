@@ -70,6 +70,38 @@ annotation class BehaveType(
 annotation class StepsMixin
 
 /**
+ * Marks a step override that is **intentionally divergent** from a same-named step
+ * in another feature file.
+ *
+ * The processor errors when the same Gherkin step text (and therefore the same generated
+ * method signature) appears in 2+ feature files and is NOT covered by a `@StepsMixin`.
+ * Two ways to resolve the error:
+ *
+ *  - Extract the shared body into a `@StepsMixin` interface, so it's written once, OR
+ *  - Mark the override with `@DivergentStep` in EVERY `*Steps` class that diverges,
+ *    declaring that the divergence is deliberate.
+ *
+ * The annotation must appear on the override in every diverging class — missing one
+ * still errors. Use a mixin instead when the bodies could be the same.
+ *
+ * Example:
+ * ```
+ * class WebSearchSteps : WebSearchStepsSpec {
+ *     @DivergentStep
+ *     override suspend fun iAmLoggedIn() { /* seed cookie store */ }
+ * }
+ *
+ * class MobileSearchSteps : MobileSearchStepsSpec {
+ *     @DivergentStep
+ *     override suspend fun iAmLoggedIn() { /* call debug-menu auto-login */ }
+ * }
+ * ```
+ */
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.BINARY)
+annotation class DivergentStep
+
+/**
  * Marks a parameter for lossy type casting in generated step definitions.
  *
  * When a step has `{int}` but concrete values include decimals (e.g., `5.5`),

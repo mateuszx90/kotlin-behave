@@ -1,40 +1,33 @@
 /**
  * ## Example 17: Checkout with Shared Steps
  *
- * This example demonstrates reusing the OnboardingSteps trait across multiple features.
+ * Demonstrates reusing the [io.mcol.behave.examples.shared.OnboardingSteps] mixin
+ * across multiple features.
  *
- * Notice:
- * - Both RecipesSharedSteps and CheckoutSharedSteps use the SAME OnboardingSteps trait
- * - The "skipOnboarding()" method is implemented ONCE in OnboardingSteps
- * - Both feature tests automatically get this implementation
- * - NO code duplication
- * - NO override of common methods
- *
- * The KSP processor will report:
- *   ✅ CheckoutSharedStepsSpec: 2 inherited, 8 new, 20% reuse
- *   (2 inherited from OnboardingSteps, 8 new specific to checkout)
+ * Both `RecipesSharedSteps` and `CheckoutSharedSteps` consume the SAME mixin via the
+ * generated `*Spec` extending it — no constructor injection, no `by delegate`, no
+ * reimplementation here.
  */
 package io.mcol.behave.examples.ex17_checkout_shared
 
 import io.mcol.behave.annotations.BehaveFeature
-import io.mcol.behave.examples.shared.OnboardingSteps
-import io.mcol.behave.examples.shared.OnboardingStepsImpl
+import io.mcol.behave.annotations.DivergentStep
 
 data class CartItem(val recipe: String, val price: Double = 9.99)
 
 @BehaveFeature("features/17_checkout_shared.feature")
-class CheckoutSharedSteps(
-    onboarding: OnboardingSteps = OnboardingStepsImpl(),
-) : CheckoutSharedStepsSpec,
-    OnboardingSteps by onboarding {
-    // NOTE: skipOnboarding() and theAppIsInitialized() are delegated to OnboardingSteps
-    // We DON'T reimplement them here — Kotlin's delegation handles it automatically!
+class CheckoutSharedSteps : CheckoutSharedStepsSpec {
+    // NOTE: skipOnboarding() and theAppIsInitialized() are inherited from the
+    // @StepsMixin OnboardingSteps interface via the generated *Spec.
+    // iNavigateToRecipes shares its name with another feature but its body is
+    // intentionally checkout-specific — marked @DivergentStep.
 
     private val cart = mutableListOf<CartItem>()
     private var currentLocation = "home"
     private var discountApplied = false
     private var discountPercent = 0
 
+    @DivergentStep
     override suspend fun iNavigateToRecipes() {
         println("✓ Navigating to recipes")
         currentLocation = "recipes"

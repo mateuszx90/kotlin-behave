@@ -1,34 +1,27 @@
 /**
  * ## Example 16: Recipes with Shared Steps
  *
- * This example demonstrates trait-based step composition.
- * The "skipOnboarding()" and "theAppIsInitialized()" steps are NOT implemented here.
- * Instead, they are delegated to the OnboardingSteps trait.
+ * Demonstrates `@StepsMixin`-based step sharing. The "skipOnboarding()" and
+ * "theAppIsInitialized()" steps are NOT implemented here — they come from
+ * the [io.mcol.behave.examples.shared.OnboardingSteps] mixin which the generated
+ * `RecipesSharedStepsSpec` automatically extends.
  *
- * When you run the test:
- * 1. Gherkin asks: "Given I skip the onboarding"
- * 2. Compiler looks in RecipesSharedSteps — step not found
- * 3. Compiler checks OnboardingSteps (via delegation) — step found and used
- * 4. Test runs: OnboardingSteps.skipOnboarding() is executed
- *
- * Result: ZERO code duplication. The implementation is written once in OnboardingSteps,
- * and both RecipesSharedSteps and CheckoutSharedSteps use it.
+ * Result: ZERO code duplication. The implementation is written once in `OnboardingSteps`,
+ * and both `RecipesSharedSteps` and `CheckoutSharedSteps` use it via interface inheritance.
  */
 package io.mcol.behave.examples.ex16_recipes_shared
 
 import io.mcol.behave.annotations.BehaveFeature
-import io.mcol.behave.examples.shared.OnboardingSteps
-import io.mcol.behave.examples.shared.OnboardingStepsImpl
+import io.mcol.behave.annotations.DivergentStep
 
 data class Recipe(val name: String, val cuisine: String = "unknown")
 
 @BehaveFeature("features/16_recipes_shared.feature")
-class RecipesSharedSteps(
-    onboarding: OnboardingSteps = OnboardingStepsImpl(),
-) : RecipesSharedStepsSpec,
-    OnboardingSteps by onboarding {
-    // NOTE: skipOnboarding() and theAppIsInitialized() are NOT implemented here!
-    // They are delegated to OnboardingSteps via 'by onboarding'
+class RecipesSharedSteps : RecipesSharedStepsSpec {
+    // NOTE: skipOnboarding() and theAppIsInitialized() are inherited from the
+    // @StepsMixin OnboardingSteps interface via the generated *Spec.
+    // iNavigateToRecipes and iSearchFor share names with other features but
+    // intentionally diverge per-feature — marked @DivergentStep.
 
     private val recipes = listOf(
         Recipe("Margherita Pizza", "Italian"),
@@ -43,6 +36,7 @@ class RecipesSharedSteps(
     private var searchResults = emptyList<Recipe>()
     private var filterCuisine = ""
 
+    @DivergentStep
     override suspend fun iNavigateToRecipes() {
         println("✓ Navigating to recipes")
         currentLocation = "recipes"
@@ -58,6 +52,7 @@ class RecipesSharedSteps(
         println("✓ Found ${recipes.size} recipes")
     }
 
+    @DivergentStep
     override suspend fun iSearchFor(string: String) {
         searchResults = recipes.filter { it.name.contains(string, ignoreCase = true) }
         println("✓ Searched for '$string', found ${searchResults.size} recipes")

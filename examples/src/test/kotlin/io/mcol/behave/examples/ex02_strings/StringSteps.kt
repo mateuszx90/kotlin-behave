@@ -10,12 +10,14 @@
 package io.mcol.behave.examples.ex02_strings
 
 import io.mcol.behave.annotations.BehaveFeature
+import io.mcol.behave.annotations.DivergentStep
 
 @BehaveFeature("features/02_string_parameters.feature")
 class StringSteps : StringStepsSpec {
 
     private val results = mutableMapOf<String, List<String>>()
 
+    @DivergentStep
     override suspend fun iSearchFor(string: String) {
         results[string] = listOf("$string-result")
     }
