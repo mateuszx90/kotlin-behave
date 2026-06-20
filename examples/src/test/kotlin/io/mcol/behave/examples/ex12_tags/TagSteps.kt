@@ -10,6 +10,7 @@
 package io.mcol.behave.examples.ex12_tags
 
 import io.mcol.behave.annotations.BehaveFeature
+import io.mcol.behave.annotations.DivergentStep
 
 @BehaveFeature("features/12_tags.feature")
 class TagSteps : TagStepsSpec {
@@ -20,6 +21,7 @@ class TagSteps : TagStepsSpec {
         loggedIn = true
     }
 
+    @DivergentStep
     override suspend fun iSeeTheDashboard() {
         check(loggedIn)
     }
