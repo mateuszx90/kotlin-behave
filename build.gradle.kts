@@ -59,7 +59,12 @@ spotless {
 tasks.register("installGitHooks") {
     description = "Configures git to use .githooks/ directory"
     doLast {
-        exec { commandLine("git", "config", "core.hooksPath", ".githooks") }
+        val exitCode =
+            ProcessBuilder("git", "config", "core.hooksPath", ".githooks")
+                .redirectErrorStream(true)
+                .start()
+                .waitFor()
+        check(exitCode == 0) { "git config core.hooksPath failed (exit $exitCode)" }
     }
 }
 
