@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@SharedSteps Architecture - kotlin-behave</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        .slides {
+            display: block;
+        }
+        .slide {
+            display: none;
+            padding: 60px;
+            min-height: 600px;
+            animation: fadeIn 0.5s;
+        }
+        .slide.active {
+            display: block !important;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .slide h2 {
+            color: #667eea;
+            font-size: 2em;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 15px;
+        }
+        .slide h3 {
+            color: #333;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .problem-box {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .solution-box {
+            background: #d4edda;
+            border-left: 5px solid #28a745;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .benefit-box {
+            background: #e7f3ff;
+            border-left: 5px solid #0066cc;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        code, pre {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+            margin: 15px 0;
+        }
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 30px 0;
+        }
+        .comparison-item {
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .before {
+            background: #ffe6e6;
+            border: 2px solid #ff6b6b;
+        }
+        .after {
+            background: #e6ffe6;
+            border: 2px solid #51cf66;
+        }
+        .comparison-item h4 {
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        .feature-list {
+            list-style: none;
+            margin: 20px 0;
+        }
+        .feature-list li {
+            padding: 10px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+        .feature-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #28a745;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        .problem-list li:before {
+            content: "✗";
+            color: #dc3545;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 60px;
+            background: #f9f9f9;
+            border-top: 1px solid #ddd;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #764ba2;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .slide-counter {
+            color: #667eea;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .diagram {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: monospace;
+            white-space: pre;
+            overflow-x: auto;
+            line-height: 1.6;
+            border: 1px solid #ddd;
+        }
+        .inheritance-diagram {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .interface-box {
+            display: inline-block;
+            background: #e7f3ff;
+            border: 2px solid #0066cc;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 10px;
+            min-width: 200px;
+        }
+        .arrow {
+            display: block;
+            margin: 10px 0;
+            font-size: 1.5em;
+            color: #0066cc;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .stat-item {
+            background: #f0f0f0;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2.5em;
+            color: #667eea;
+            font-weight: bold;
+        }
+        .stat-label {
+            margin-top: 10px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>@SharedSteps Architecture</h1>
+            <p>Eliminating Step Definition Duplication in kotlin-behave</p>
+        </div>
+
+        <div class="slides">
+            <!-- Slide 1: The Problem -->
+            <div class="slide active">
+                <h2>The Problem: Step Duplication</h2>
+
+                <div class="problem-box">
+                    <strong>Your App Has 3 Feature Tests:</strong>
+                    <ul style="margin-left: 30px; margin-top: 10px;">
+                        <li>recipes-list.feature</li>
+                        <li>settings.feature</li>
+                        <li>checkout.feature</li>
+                    </ul>
+                </div>
+
+                <div class="problem-box">
+                    <strong>All 3 Start With The SAME Steps:</strong>
+                    <ul style="margin-left: 30px; margin-top: 10px;">
+                        <li>Given I skip the onboarding</li>
+                        <li>When I login</li>
+                        <li>And I accept permissions</li>
+                    </ul>
+                </div>
+
+                <h3>Generated Interfaces (WITHOUT Fix)</h3>
+                <div class="diagram">RecipesStepsSpec:
+  ✗ fun skipOnboarding()      (REPEATED)
+  ✗ fun login()               (REPEATED)
+  ✗ fun acceptPermissions()   (REPEATED)
+  + fun viewRecipeList()
+  + fun selectRecipe()
+
+SettingsStepsSpec:
+  ✗ fun skipOnboarding()      (COPY!)
+  ✗ fun login()               (COPY!)
+  ✗ fun acceptPermissions()   (COPY!)
+  + fun openSettings()
+  + fun changeLang()
+
+CheckoutStepsSpec:
+  ✗ fun skipOnboarding()      (COPY!)
+  ✗ fun login()               (COPY!)
+  ✗ fun acceptPermissions()   (COPY!)
+  + fun addToCart()
+  + fun checkout()</div>
+
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-number">6</div>
+                        <div class="stat-label">Methods repeated</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">3x</div>
+                        <div class="stat-label">Times copied</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">300+</div>
+                        <div class="stat-label">Lines of duplicate code</div>
+                    </div>
+                </div>
+
+                <div class="problem-box">
+                    <strong>Issues:</strong>
+                    <ul style="margin-left: 30px; margin-top: 10px;">
+                        <li>If you fix a bug in login(), must update 3 places</li>
+                        <li>Easy to miss updating one copy</li>
+                        <li>Violates DRY principle</li>
+                        <li>Scales poorly (add 10 more features → 30x duplication)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Slide 2: The Solution -->
+            <div class="slide">
+                <h2>The Solution: @SharedSteps Annotation</h2>
+
+                <h3>Step 1: Mark Shared Feature</h3>
+                <code><pre>@SharedSteps("common/onboarding-flow.feature")
+class OnboardingSteps : OnboardingStepsSpec {
+    override suspend fun skipOnboarding() { ... }
+    override suspend fun login() { ... }
+    override suspend fun acceptPermissions() { ... }
+}
+
+👆 Implement ONCE</pre></code>
+
+                <h3>Step 2: Declare Usage in Feature Tests</h3>
+                <code><pre>@BehaveFeature(
+    "features/recipes.feature",
+    uses = [OnboardingSteps::class]  👈 NEW!
+)
+class RecipesSteps(
+    onboarding: OnboardingSteps = OnboardingSteps()
+) : RecipesStepsSpec,
+    OnboardingStepsSpec by onboarding {  👈 DELEGATE
+    override suspend fun viewRecipeList() { ... }
+    override suspend fun selectRecipe() { ... }
+}</pre></code>
+
+                <h3>Step 3: KSP Generates With Inheritance</h3>
+                <div class="inheritance-diagram">
+                    <div class="interface-box">
+                        OnboardingStepsSpec
+                        <div style="margin-top: 10px; font-size: 0.9em; color: #333;">
+                            fun skipOnboarding()<br/>
+                            fun login()<br/>
+                            fun acceptPermissions()
+                        </div>
+                    </div>
+                    <div class="arrow">⬇️ INHERITED</div>
+                    <div class="interface-box">
+                        RecipesStepsSpec
+                        <div style="margin-top: 10px; font-size: 0.9em; color: #333;">
+                            fun viewRecipeList()<br/>
+                            fun selectRecipe()<br/>
+                            <span style="color: #666;">(3 inherited above)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="solution-box">
+                    <strong>Result:</strong>
+                    <ul style="margin-left: 30px; margin-top: 10px;">
+                        <li>✓ One interface per feature</li>
+                        <li>✓ Shared methods inherited, not repeated</li>
+                        <li>✓ Zero generated duplication</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Slide 3: Runtime Magic -->
+            <div class="slide">
+                <h2>Runtime: How Tests Execute Shared Steps</h2>
+
+                <h3>Your Test Code</h3>
+                <code><pre>class RecipesGherkinTest : FreeSpec({
+    gherkin(
+        "features/recipes.feature",
+        RecipesStepsSpec.steps { RecipesSteps() }
+                         ^^^^^^ auto-wired!
+    )
+})</pre></code>
+
+                <h3>What Gets Registered at Runtime</h3>
+                <div class="diagram">RecipesStepsSpec.steps() generates StepDefinitions:
+
+┌─────────────────────────────────────────┐
+│ Recipe-Specific Steps (from RecipesSteps) │
+├─────────────────────────────────────────┤
+│ When "I view the recipe list"  → viewRecipeList
+│ And "I select recipe"          → selectRecipe
+└─────────────────────────────────────────┘
+
+┌─────────────────────────────────────────┐
+│ Shared Steps (auto-merged)              │
+├─────────────────────────────────────────┤
+│ Given "I skip the onboarding"  → skipOnboarding
+│ When "I login"                 → login
+│ And "I accept permissions"     → acceptPermissions
+└─────────────────────────────────────────┘</div>
+
+                <h3>Feature File Execution</h3>
+                <code><pre>Feature: Recipe List
+  Scenario: Browse recipes
+    Given I skip the onboarding         ✓ OnboardingSteps
+    When I login                        ✓ OnboardingSteps
+    And I accept permissions            ✓ OnboardingSteps
+    When I view the recipe list         ✓ RecipesSteps
+    And I select recipe "Pizza"         ✓ RecipesSteps</pre></code>
+
+                <div class="solution-box">
+                    <strong>Execution Result:</strong>
+                    <ul style="margin-left: 30px; margin-top: 10px;">
+                        <li>✓ Shared steps executed from shared implementation</li>
+                        <li>✓ Feature steps executed from feature implementation</li>
+                        <li>✓ No duplication, clean separation of concerns</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Slide 4: Benefits -->
+            <div class="slide">
+                <h2>Benefits: Why This Matters</h2>
+
+                <div class="benefit-box">
+                    <h3>1️⃣ Zero Code Duplication</h3>
+                    <div class="comparison">
+                        <div class="comparison-item before">
+                            <h4>Before</h4>
+                            <p>3 features × 3 shared methods = 9 lines of duplicate code</p>
+                        </div>
+                        <div class="comparison-item after">
+                            <h4>After</h4>
+                            <p>3 shared methods implemented 1× = 3 lines of code</p>
+                            <p><strong>67% less code</strong></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="benefit-box">
+                    <h3>2️⃣ Bug Fixes Are Easy</h3>
+                    <p>One of your tests fails on <code>login()</code>?</p>
+                    <div class="comparison">
+                        <div class="comparison-item before">
+                            <h4>Without @SharedSteps</h4>
+                            <ul class="problem-list" style="margin-left: 30px;">
+                                <li>Fix in RecipesSteps.login()</li>
+                                <li>Fix in SettingsSteps.login()</li>
+                                <li>Fix in CheckoutSteps.login()</li>
+                                <li>Pray you didn't miss one</li>
+                            </ul>
+                        </div>
+                        <div class="comparison-item after">
+                            <h4>With @SharedSteps</h4>
+                            <ul class="feature-list" style="margin-left: 30px;">
+                                <li>Fix in OnboardingSteps.login() — DONE</li>
+                                <li>All tests use the same implementation</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="benefit-box">
+                    <h3>3️⃣ Type-Safe Inheritance</h3>
+                    <p>The compiler knows:</p>
+                    <ul class="feature-list" style="margin-left: 30px;">
+                        <li>RecipesStepsSpec extends OnboardingStepsSpec</li>
+                        <li>All required methods implemented</li>
+                    </ul>
+                    <p><strong>Missing implementation = compile error</strong></p>
+                </div>
+
+                <div class="benefit-box">
+                    <h3>4️⃣ Scales Beautifully</h3>
+                    <p>Add 10 more features with onboarding?</p>
+                    <div class="comparison">
+                        <div class="comparison-item before">
+                            <h4>Without @SharedSteps</h4>
+                            <ul class="problem-list" style="margin-left: 30px;">
+                                <li>Copy-paste steps 10 times</li>
+                                <li>100+ lines of code</li>
+                                <li>10 places to update if bug found</li>
+                            </ul>
+                        </div>
+                        <div class="comparison-item after">
+                            <h4>With @SharedSteps</h4>
+                            <ul class="feature-list" style="margin-left: 30px;">
+                                <li>uses = [OnboardingSteps::class]</li>
+                                <li>1 line per feature</li>
+                                <li>1 place to fix bugs</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="benefit-box">
+                    <h3>5️⃣ Clear Architecture</h3>
+                    <p>Looking at your tests:</p>
+                    <code><pre>RecipesStepsSpec : OnboardingStepsSpec
+
+^-- Immediately clear: "Recipes needs
+    Onboarding steps first"</pre></code>
+                </div>
+
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin-top: 30px; text-align: center;">
+                    <h3 style="color: white; border: none; margin-bottom: 15px;">💡 Summary</h3>
+                    <p><strong>@SharedSteps makes your BDD tests:</strong></p>
+                    <ul class="feature-list" style="color: white; margin-top: 15px;">
+                        <li>DRY (Don't Repeat Yourself)</li>
+                        <li>Maintainable</li>
+                        <li>Scalable</li>
+                        <li>Self-documenting</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="prevBtn" onclick="changeSlide(-1)">← Previous</button>
+            <span class="slide-counter">
+                <span id="currentSlide">1</span> / <span id="totalSlides">4</span>
+            </span>
+            <button id="nextBtn" onclick="changeSlide(1)">Next →</button>
+        </div>
+    </div>
+
+    <script>
+        let currentSlide = 1;
+        const totalSlides = document.querySelectorAll('.slide').length;
+        document.getElementById('totalSlides').textContent = totalSlides;
+
+        function showSlide(n) {
+            const slides = document.querySelectorAll('.slide');
+
+            if (n > totalSlides) currentSlide = totalSlides;
+            if (n < 1) currentSlide = 1;
+
+            slides.forEach(slide => slide.classList.remove('active'));
+            slides[currentSlide - 1].classList.add('active');
+
+            document.getElementById('currentSlide').textContent = currentSlide;
+            document.getElementById('prevBtn').disabled = currentSlide === 1;
+            document.getElementById('nextBtn').disabled = currentSlide === totalSlides;
+        }
+
+        function changeSlide(n) {
+            currentSlide += n;
+            showSlide(currentSlide);
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') changeSlide(-1);
+            if (e.key === 'ArrowRight') changeSlide(1);
+        });
+
+        showSlide(currentSlide);
+    </script>
+</body>
+</html>

@@ -6,13 +6,26 @@ import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.processing.SymbolProcessor
+import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSFile
+import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import java.io.File
 
 private enum class Kind { PLACEHOLDER, QUOTED, VARIABLE, NUMBER }
 private data class Tok(val pos: Int, val kind: Kind, val name: String)
+
+/**
+ * Key for matching a generated step method against a mixin method.
+ * name + canonical parameter type names. Reading the docs: param types are simple names
+ * (kotlin.* stripped). Suspend modifier is not part of the key — mixin authors are
+ * expected to declare `suspend fun`.
+ */
+private data class MixinMethodKey(val name: String, val paramTypes: List<String>)
+
+private data class MixinInfo(val qualifiedName: String, val simpleName: String)
 
 class BehaveProcessor(
     private val codeGenerator: CodeGenerator,
@@ -21,10 +34,28 @@ class BehaveProcessor(
     private val projectDir: String,
 ) : SymbolProcessor {
 
+    private var mixinRegistry: Map<MixinMethodKey, MixinInfo> = emptyMap()
+
+    // Files that declare `@StepsMixin` interfaces. Every generated spec must declare a
+    // dependency on these (and run in aggregating mode) so that adding, removing, or
+    // editing a mixin invalidates the cached spec output.
+    private var mixinSourceFiles: List<KSFile> = emptyList()
+
+    // Generated method name -> set of qualified `*Steps` class names that declare that step.
+    // Used to detect cross-feature duplication that the user hasn't covered with @StepsMixin.
+    private var stepToFeatures: Map<String, Set<String>> = emptyMap()
+
     override fun process(resolver: Resolver): List<KSAnnotated> {
+        val mixins = collectMixins(resolver)
+        mixinRegistry = buildMixinRegistry(mixins)
+        mixinSourceFiles = mixins.mapNotNull { it.containingFile }.distinct()
+
         val featureAnnotation = "io.mcol.behave.annotations.BehaveFeature"
         val symbols = resolver.getSymbolsWithAnnotation(featureAnnotation)
             .filterIsInstance<KSClassDeclaration>()
+            .toList()
+
+        stepToFeatures = buildStepToFeaturesMap(symbols)
 
         for (classDecl in symbols) {
             processClass(classDecl, resolver)
@@ -32,6 +63,135 @@ class BehaveProcessor(
 
         return emptyList()
     }
+
+    /**
+     * Pass 1 helper: parse every feature file once and record which generated method names
+     * each `*Steps` class will need. Used by [validateDivergence] in pass 2.
+     */
+    private fun buildStepToFeaturesMap(featureSymbols: List<KSClassDeclaration>): Map<String, Set<String>> {
+        val map = mutableMapOf<String, MutableSet<String>>()
+        featureSymbols.mapNotNull(::extractFeatureSteps).forEach { (qName, methodNames) ->
+            methodNames.forEach { name -> map.getOrPut(name) { mutableSetOf() }.add(qName) }
+        }
+        return map
+    }
+
+    private fun extractFeatureSteps(classDecl: KSClassDeclaration): Pair<String, Set<String>>? {
+        val qName = classDecl.qualifiedName?.asString() ?: return null
+        val featureFile = resolveFeatureFile(classDecl)?.takeIf { it.exists() } ?: return null
+        val parsed = runCatching { FeatureFileParser.parse(featureFile.readText()) }
+            .getOrNull()
+            ?.takeUnless { it.hasErrors }
+            ?: return null
+        val stepPairs = parsed.steps.map { it.keyword to it.text }
+        return qName to MethodNameGenerator.resolveCollisions(stepPairs).toSet()
+    }
+
+    private fun resolveFeatureFile(classDecl: KSClassDeclaration): File? {
+        val annotation = classDecl.annotations.firstOrNull {
+            it.shortName.asString() == "BehaveFeature"
+        } ?: return null
+        val path = annotation.arguments
+            .firstOrNull { it.name?.asString() == "path" }
+            ?.value as? String ?: return null
+        val featureDir = options["behave.featureDir"] ?: "src/commonTest/resources"
+        return File(projectDir, "$featureDir/$path")
+    }
+
+    /**
+     * For every step in this feature that's NOT inherited from a mixin and IS declared by
+     * another feature step file, require the override to carry `@DivergentStep`.
+     * Otherwise emit an error pointing users to either extract a mixin or annotate explicitly.
+     */
+    private fun validateDivergence(
+        generatedSteps: List<io.mcol.behave.ksp.CodeGenerator.GeneratedStep>,
+        inheritedMethodNames: Set<String>,
+        classDecl: KSClassDeclaration,
+    ) {
+        val classQName = classDecl.qualifiedName?.asString() ?: return
+        val declaredFuncs = classDecl.getDeclaredFunctions().toList()
+        generatedSteps.forEach { step ->
+            validateStepDivergence(step, inheritedMethodNames, classQName, declaredFuncs, classDecl)
+        }
+    }
+
+    private fun validateStepDivergence(
+        step: io.mcol.behave.ksp.CodeGenerator.GeneratedStep,
+        inheritedMethodNames: Set<String>,
+        classQName: String,
+        declaredFuncs: List<KSFunctionDeclaration>,
+        classDecl: KSClassDeclaration,
+    ) {
+        val implMethod = declaredFuncs.firstOrNull { it.simpleName.asString() == step.methodName }
+        val hasDivergent = implMethod?.annotations?.any {
+            it.shortName.asString() == "DivergentStep"
+        } ?: false
+        val check = Validation.checkDivergence(
+            methodName = step.methodName,
+            originalKeyword = step.originalKeyword,
+            originalText = step.originalText,
+            inheritedMethodNames = inheritedMethodNames,
+            sharers = stepToFeatures[step.methodName].orEmpty(),
+            thisClassName = classQName,
+            hasDivergentAnnotation = hasDivergent,
+        )
+        check.errorMessage?.let { logger.error(it, implMethod ?: classDecl) }
+    }
+
+    private fun collectMixins(resolver: Resolver): List<KSClassDeclaration> {
+        val mixinAnnotation = "io.mcol.behave.annotations.StepsMixin"
+        return resolver.getSymbolsWithAnnotation(mixinAnnotation)
+            .filterIsInstance<KSClassDeclaration>()
+            .filter { it.classKind == ClassKind.INTERFACE }
+            .toList()
+    }
+
+    private fun buildMixinRegistry(mixins: List<KSClassDeclaration>): Map<MixinMethodKey, MixinInfo> {
+        val registry = mutableMapOf<MixinMethodKey, MixinInfo>()
+        for (mixin in mixins) {
+            val qName = mixin.qualifiedName?.asString()
+            if (qName == null) {
+                logger.warn(
+                    "@StepsMixin interface '${mixin.simpleName.asString()}' has no qualified name " +
+                        "(likely in the default package) — skipped. Move it into a named package.",
+                    mixin,
+                )
+                continue
+            }
+            val info = MixinInfo(qualifiedName = qName, simpleName = mixin.simpleName.asString())
+            for (func in mixin.getDeclaredFunctions()) {
+                if (func.isAbstract) continue // mixin entries must carry a default body to be useful
+                val methodName = func.simpleName.asString()
+                val paramTypes = func.parameters.map { canonicalTypeName(it.type.resolve()) }
+                val key = MixinMethodKey(methodName, paramTypes)
+                val prior = registry[key]
+                val check = Validation.checkMixinClash(
+                    methodName = methodName,
+                    paramTypes = paramTypes,
+                    newOwnerQualifiedName = qName,
+                    priorOwnerQualifiedName = prior?.qualifiedName,
+                )
+                check.errorMessage?.let { logger.error(it, mixin) }
+                if (check.shouldRegister) registry[key] = info
+            }
+        }
+        return registry
+    }
+
+    /** Reduce KSP type names to the same form `CodeGenerator` uses on the generated side. */
+    private fun canonicalTypeName(type: KSType): String {
+        val raw = type.declaration.qualifiedName?.asString()
+            ?: type.declaration.simpleName.asString()
+        val stripped = raw.removePrefix("kotlin.").removePrefix("kotlin.collections.")
+        val baseShort = if (stripped.startsWith("kotlin.")) stripped.substringAfterLast('.') else stripped
+        if (type.arguments.isEmpty()) return baseShort
+        val args = type.arguments.joinToString(", ") {
+            it.type?.resolve()?.let { t -> canonicalTypeName(t) } ?: "*"
+        }
+        return "$baseShort<$args>"
+    }
+
+    private fun canonicalGeneratedParamType(typeName: String): String = typeName.removePrefix("kotlin.").removePrefix("kotlin.collections.")
 
     private fun processClass(classDecl: KSClassDeclaration, resolver: Resolver) {
         val className = classDecl.simpleName.asString()
@@ -135,6 +295,23 @@ class BehaveProcessor(
 
         val rowClasses = buildRowClasses(generatedSteps, parsed.steps)
 
+        // Match each generated step against the mixin registry. A step whose
+        // (methodName, paramTypes) matches a @StepsMixin method becomes "inherited" —
+        // omitted from the spec's abstract methods, with the spec extending that mixin.
+        val inheritedByMethod = mutableMapOf<String, String>() // method name -> qualified mixin
+        val mixinSimpleNames = linkedSetOf<String>()
+        for (step in generatedSteps) {
+            val paramTypes = step.params.map { canonicalGeneratedParamType(it.typeName) }
+            val key = MixinMethodKey(step.methodName, paramTypes)
+            val info = mixinRegistry[key] ?: continue
+            inheritedByMethod[step.methodName] = info.qualifiedName
+            mixinSimpleNames.add(info.qualifiedName)
+        }
+
+        // Detect cross-feature step duplication that's NOT covered by a mixin and NOT
+        // explicitly marked @DivergentStep. Emits errors that fail the build.
+        validateDivergence(generatedSteps, inheritedByMethod.keys, classDecl)
+
         val interfaceName = "${className}Spec"
         val iface = io.mcol.behave.ksp.CodeGenerator.GeneratedInterface(
             packageName = packageName,
@@ -147,12 +324,19 @@ class BehaveProcessor(
             hasAfterScenario = hasAfterScenario,
             steps = generatedSteps,
             rowClasses = rowClasses,
+            inheritedMixins = mixinSimpleNames.toList(),
+            inheritedMethodNames = inheritedByMethod.keys.toSet(),
         )
 
         val source = io.mcol.behave.ksp.CodeGenerator.render(iface)
 
+        // Track every source that can change what the generated spec looks like:
+        //  - the @BehaveFeature class file (always)
+        //  - every @StepsMixin file in the compilation (any change affects what's inherited)
+        // aggregating = true so that adding a NEW mixin file later also invalidates this output.
+        val depSources = (listOfNotNull(classDecl.containingFile) + mixinSourceFiles).distinct()
         val outputFile = codeGenerator.createNewFile(
-            dependencies = Dependencies(aggregating = false),
+            dependencies = Dependencies(aggregating = true, sources = depSources.toTypedArray()),
             packageName = packageName,
             fileName = interfaceName,
         )

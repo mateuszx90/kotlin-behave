@@ -42,6 +42,66 @@ annotation class BehaveType(
 )
 
 /**
+ * Marks an interface as a reusable step mixin.
+ *
+ * When KSP processes a `@BehaveFeature` class, any step whose generated method signature
+ * (name + parameter types) matches a method declared in a `@StepsMixin` interface is treated
+ * as **inherited**: the generated `*StepsSpec` extends the mixin instead of redeclaring
+ * the method as abstract. The implementing class only needs to satisfy the mixin's
+ * abstract members (typically `val app: AppRobot`).
+ *
+ * Use mixins to share step bodies across feature files without forcing every `*Steps`
+ * class to override the same method.
+ *
+ * Example:
+ * ```
+ * @StepsMixin
+ * interface NavigationStepsMixin {
+ *     val app: AppRobot
+ *     suspend fun iNavigateToSettings() = app.navigateToSettings()
+ * }
+ * ```
+ *
+ * The interface must live in the same KSP compilation unit (typically `commonTest`) as
+ * the `@BehaveFeature` classes that consume it.
+ */
+@Target(AnnotationTarget.CLASS)
+@Retention(AnnotationRetention.BINARY)
+annotation class StepsMixin
+
+/**
+ * Marks a step override that is **intentionally divergent** from a same-named step
+ * in another feature file.
+ *
+ * The processor errors when the same Gherkin step text (and therefore the same generated
+ * method signature) appears in 2+ feature files and is NOT covered by a `@StepsMixin`.
+ * Two ways to resolve the error:
+ *
+ *  - Extract the shared body into a `@StepsMixin` interface, so it's written once, OR
+ *  - Mark the override with `@DivergentStep` in EVERY `*Steps` class that diverges,
+ *    declaring that the divergence is deliberate.
+ *
+ * The annotation must appear on the override in every diverging class — missing one
+ * still errors. Use a mixin instead when the bodies could be the same.
+ *
+ * Example:
+ * ```
+ * class WebSearchSteps : WebSearchStepsSpec {
+ *     @DivergentStep
+ *     override suspend fun iAmLoggedIn() { /* seed cookie store */ }
+ * }
+ *
+ * class MobileSearchSteps : MobileSearchStepsSpec {
+ *     @DivergentStep
+ *     override suspend fun iAmLoggedIn() { /* call debug-menu auto-login */ }
+ * }
+ * ```
+ */
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.BINARY)
+annotation class DivergentStep
+
+/**
  * Marks a parameter for lossy type casting in generated step definitions.
  *
  * When a step has `{int}` but concrete values include decimals (e.g., `5.5`),

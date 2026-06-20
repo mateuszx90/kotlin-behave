@@ -41,6 +41,12 @@ internal object CodeGenerator {
         val hasAfterScenario: Boolean, // when true, register After hook delegating to AfterScenario
         val steps: List<GeneratedStep>,
         val rowClasses: List<GeneratedRowClass>,
+        // Fully-qualified names of @StepsMixin interfaces whose method signatures match steps
+        // in this feature. The generated spec extends them so users don't redeclare bodies.
+        val inheritedMixins: List<String> = emptyList(),
+        // Generated method names that come from a mixin. Skipped in the abstract block but
+        // still routed in the steps {} companion (the inherited method is called instead).
+        val inheritedMethodNames: Set<String> = emptySet(),
     )
 
     fun render(iface: GeneratedInterface): String = buildString {
@@ -69,10 +75,16 @@ internal object CodeGenerator {
             appendLine()
         }
 
-        appendLine("interface ${iface.interfaceName} {")
+        val superList = if (iface.inheritedMixins.isEmpty()) {
+            ""
+        } else {
+            " : " + iface.inheritedMixins.joinToString(", ")
+        }
+        appendLine("interface ${iface.interfaceName}$superList {")
         appendLine()
 
         for (step in iface.steps) {
+            if (step.methodName in iface.inheritedMethodNames) continue
             appendLine("    // ${step.originalKeyword} ${step.originalText}")
             if (step.params.isEmpty()) {
                 appendLine("    suspend fun ${step.methodName}()")

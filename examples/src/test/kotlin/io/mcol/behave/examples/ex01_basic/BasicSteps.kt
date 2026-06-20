@@ -15,6 +15,7 @@
 package io.mcol.behave.examples.ex01_basic
 
 import io.mcol.behave.annotations.BehaveFeature
+import io.mcol.behave.annotations.DivergentStep
 
 @BehaveFeature("features/01_basic_steps.feature")
 class BasicSteps : BasicStepsSpec {
@@ -41,6 +42,7 @@ class BasicSteps : BasicStepsSpec {
         onLoginPage = false
     }
 
+    @DivergentStep
     override suspend fun iSeeTheDashboard() {
         check(loggedIn)
     }
