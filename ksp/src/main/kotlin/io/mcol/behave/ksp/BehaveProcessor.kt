@@ -122,24 +122,20 @@ class BehaveProcessor(
         declaredFuncs: List<KSFunctionDeclaration>,
         classDecl: KSClassDeclaration,
     ) {
-        if (step.methodName in inheritedMethodNames) return
-        val sharers = stepToFeatures[step.methodName] ?: return
-        if (sharers.size < 2) return
         val implMethod = declaredFuncs.firstOrNull { it.simpleName.asString() == step.methodName }
         val hasDivergent = implMethod?.annotations?.any {
             it.shortName.asString() == "DivergentStep"
         } ?: false
-        if (hasDivergent) return
-        val others = (sharers - classQName).sorted()
-        val othersBlock = others.joinToString("\n  - ", prefix = "  - ")
-        logger.error(
-            "Step '${step.methodName}' (\"${step.originalKeyword} ${step.originalText}\") " +
-                "is declared in this feature and ${others.size} other:\n$othersBlock\n" +
-                "Fix either by:\n" +
-                "  - moving the shared body into a @StepsMixin interface (recommended when impls match), OR\n" +
-                "  - adding @DivergentStep on the override in EVERY listed class to mark the divergence as intentional.",
-            implMethod ?: classDecl,
+        val check = Validation.checkDivergence(
+            methodName = step.methodName,
+            originalKeyword = step.originalKeyword,
+            originalText = step.originalText,
+            inheritedMethodNames = inheritedMethodNames,
+            sharers = stepToFeatures[step.methodName].orEmpty(),
+            thisClassName = classQName,
+            hasDivergentAnnotation = hasDivergent,
         )
+        check.errorMessage?.let { logger.error(it, implMethod ?: classDecl) }
     }
 
     private fun collectMixins(resolver: Resolver): List<KSClassDeclaration> {
@@ -169,19 +165,14 @@ class BehaveProcessor(
                 val paramTypes = func.parameters.map { canonicalTypeName(it.type.resolve()) }
                 val key = MixinMethodKey(methodName, paramTypes)
                 val prior = registry[key]
-                if (prior != null && prior.qualifiedName != qName) {
-                    logger.error(
-                        "Step method '$methodName(${paramTypes.joinToString()})' is declared by multiple @StepsMixin interfaces:\n" +
-                            "  - ${prior.qualifiedName}\n" +
-                            "  - $qName\n" +
-                            "Each step method must be unique across all @StepsMixin interfaces. Either:\n" +
-                            "  - move the duplicated method into a single mixin, OR\n" +
-                            "  - rename one of them.",
-                        mixin,
-                    )
-                    continue
-                }
-                registry[key] = info
+                val check = Validation.checkMixinClash(
+                    methodName = methodName,
+                    paramTypes = paramTypes,
+                    newOwnerQualifiedName = qName,
+                    priorOwnerQualifiedName = prior?.qualifiedName,
+                )
+                check.errorMessage?.let { logger.error(it, mixin) }
+                if (check.shouldRegister) registry[key] = info
             }
         }
         return registry
