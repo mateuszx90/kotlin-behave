@@ -42,6 +42,34 @@ annotation class BehaveType(
 )
 
 /**
+ * Marks an interface as a reusable step mixin.
+ *
+ * When KSP processes a `@BehaveFeature` class, any step whose generated method signature
+ * (name + parameter types) matches a method declared in a `@StepsMixin` interface is treated
+ * as **inherited**: the generated `*StepsSpec` extends the mixin instead of redeclaring
+ * the method as abstract. The implementing class only needs to satisfy the mixin's
+ * abstract members (typically `val app: AppRobot`).
+ *
+ * Use mixins to share step bodies across feature files without forcing every `*Steps`
+ * class to override the same method.
+ *
+ * Example:
+ * ```
+ * @StepsMixin
+ * interface NavigationStepsMixin {
+ *     val app: AppRobot
+ *     suspend fun iNavigateToSettings() = app.navigateToSettings()
+ * }
+ * ```
+ *
+ * The interface must live in the same KSP compilation unit (typically `commonTest`) as
+ * the `@BehaveFeature` classes that consume it.
+ */
+@Target(AnnotationTarget.CLASS)
+@Retention(AnnotationRetention.BINARY)
+annotation class StepsMixin
+
+/**
  * Marks a parameter for lossy type casting in generated step definitions.
  *
  * When a step has `{int}` but concrete values include decimals (e.g., `5.5`),
