@@ -34,7 +34,7 @@ class RecipesSharedSteps : RecipesSharedStepsSpec {
 
     private var currentLocation = "home"
     private var searchResults = emptyList<Recipe>()
-    private var filterCuisine = ""
+    private var filteredRecipes = emptyList<Recipe>()
 
     @DivergentStep
     override suspend fun iNavigateToRecipes() {
@@ -67,13 +67,12 @@ class RecipesSharedSteps : RecipesSharedStepsSpec {
     }
 
     override suspend fun iFilterByCuisine(string: String) {
-        filterCuisine = string
-        println("✓ Filtering by cuisine: $string")
+        filteredRecipes = recipes.filter { it.cuisine == string }
+        println("✓ Filtering by cuisine: $string, found ${filteredRecipes.size} recipes")
     }
 
     override suspend fun iSeeRecipesFilteredBy(string: String) {
-        val filtered = recipes.filter { it.cuisine == string }
-        check(filtered.isNotEmpty()) { "No recipes found for cuisine '$string'" }
-        println("✓ Showing ${filtered.size} $string recipes")
+        check(filteredRecipes.isNotEmpty()) { "No recipes found for cuisine '$string'" }
+        println("✓ Showing ${filteredRecipes.size} $string recipes")
     }
 }

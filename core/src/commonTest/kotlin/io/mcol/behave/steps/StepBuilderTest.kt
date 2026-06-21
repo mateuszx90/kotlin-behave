@@ -17,7 +17,10 @@ class StepBuilderTest {
     fun `registered Given step is found by matching text`() = runTest {
         val defs =
             steps(::Ctx) {
-                Given("I have {int} words") { (n: Int) -> ctx.value = n }
+                Given("I have {int} words") { params ->
+                    val n = params[0] as Int
+                    ctx.value = n
+                }
             }
         assertNotNull(defs.find("I have 5 words"))
     }
@@ -26,7 +29,10 @@ class StepBuilderTest {
     fun `step lambda receives converted params and updates ctx`() = runTest {
         val defs =
             steps(::Ctx) {
-                Given("I have {int} words") { (n: Int) -> ctx.value = n }
+                Given("I have {int} words") { params ->
+                    val n = params[0] as Int
+                    ctx.value = n
+                }
             }
         defs.stepBuilder.ctx = Ctx()
         defs.find("I have 7 words")!!.invoke()
@@ -37,7 +43,10 @@ class StepBuilderTest {
     fun `ctx is replaced per scenario`() = runTest {
         val defs =
             steps(::Ctx) {
-                Given("set {int}") { (n: Int) -> ctx.value = n }
+                Given("set {int}") { params ->
+                    val n = params[0] as Int
+                    ctx.value = n
+                }
             }
         defs.stepBuilder.ctx = Ctx().also { it.value = 99 }
         val fresh = defs.factory()

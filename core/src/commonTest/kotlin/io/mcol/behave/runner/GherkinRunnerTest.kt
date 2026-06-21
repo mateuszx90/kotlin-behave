@@ -25,8 +25,14 @@ class GherkinRunnerTest {
     )
 
     private fun makeSteps() = steps(::Ctx) {
-        Given("I have {int} words") { (n: Int) -> ctx.value = n }
-        Then("value is {int}") { (n: Int) -> kotlin.test.assertEquals(n, ctx.value) }
+        Given("I have {int} words") { params ->
+            val n = params[0] as Int
+            ctx.value = n
+        }
+        Then("value is {int}") { params ->
+            val n = params[0] as Int
+            kotlin.test.assertEquals(n, ctx.value)
+        }
         Then("this is pending") { pending() }
     }
 
@@ -124,7 +130,10 @@ class GherkinRunnerTest {
     fun `background steps run before each scenario`() = runTest {
         val defs = steps(::Ctx) {
             Given("setup") { ctx.value = 10 }
-            Then("value is {int}") { (n: Int) -> kotlin.test.assertEquals(n, ctx.value) }
+            Then("value is {int}") { params ->
+                val n = params[0] as Int
+                kotlin.test.assertEquals(n, ctx.value)
+            }
         }
         val feature = Feature(
             name = "F",
@@ -140,8 +149,14 @@ class GherkinRunnerTest {
     @Test
     fun `ctx is fresh for each scenario`() = runTest {
         val defs = steps(::Ctx) {
-            Given("set {int}") { (n: Int) -> ctx.value = n }
-            Then("value is {int}") { (n: Int) -> kotlin.test.assertEquals(n, ctx.value) }
+            Given("set {int}") { params ->
+                val n = params[0] as Int
+                ctx.value = n
+            }
+            Then("value is {int}") { params ->
+                val n = params[0] as Int
+                kotlin.test.assertEquals(n, ctx.value)
+            }
         }
         val feature = Feature(
             "F",
@@ -157,8 +172,14 @@ class GherkinRunnerTest {
     fun `background runs before each expanded outline scenario`() = runTest {
         val defs = steps(::Ctx) {
             Given("setup") { ctx.value = 10 }
-            Given("add {int}") { (n: Int) -> ctx.value += n }
-            Then("value is {int}") { (n: Int) -> kotlin.test.assertEquals(n, ctx.value) }
+            Given("add {int}") { params ->
+                val n = params[0] as Int
+                ctx.value += n
+            }
+            Then("value is {int}") { params ->
+                val n = params[0] as Int
+                kotlin.test.assertEquals(n, ctx.value)
+            }
         }
         val feature = Feature(
             name = "F",
@@ -339,8 +360,14 @@ class GherkinRunnerTest {
     @Test
     fun `reads feature from resources and runs it`() = runTest {
         val defs = steps(::Ctx) {
-            Given("the value is {int}") { (n: Int) -> ctx.value = n }
-            Then("value equals {int}") { (n: Int) -> kotlin.test.assertEquals(n, ctx.value) }
+            Given("the value is {int}") { params ->
+                val n = params[0] as Int
+                ctx.value = n
+            }
+            Then("value equals {int}") { params ->
+                val n = params[0] as Int
+                kotlin.test.assertEquals(n, ctx.value)
+            }
         }
         val feature = loadFeature("features/hello.feature")
         assertFalse(GherkinRunner(defs).run(feature).hasFailures)
@@ -378,7 +405,10 @@ class GherkinRunnerTest {
             Given("the following words") { params ->
                 capturedRows.addAll(params.dataTable?.rows ?: emptyList())
             }
-            Then("word count is {int}") { (n: Int) -> assertEquals(n, capturedRows.size) }
+            Then("word count is {int}") { params ->
+                val n = params[0] as Int
+                assertEquals(n, capturedRows.size)
+            }
         }
         gherkin("features/data_table.feature", defs)
         assertEquals(3, capturedRows.size)
@@ -394,7 +424,10 @@ class GherkinRunnerTest {
             Given("the following words") { params ->
                 capturedRows.addAll(params.dataTable?.rows ?: emptyList())
             }
-            Then("word count is {int}") { (n: Int) -> assertEquals(n, capturedRows.size) }
+            Then("word count is {int}") { params ->
+                val n = params[0] as Int
+                assertEquals(n, capturedRows.size)
+            }
         }
         gherkin("features/data_table_null.feature", defs)
         assertEquals(null, capturedRows[0]["translation"]) // "null" text → null
@@ -420,9 +453,16 @@ class GherkinRunnerTest {
             var count: Int = 0
         }
         val wordSteps = steps(::WordCtx) {
-            Given("the adapter count is {int}") { (n: Int) -> ctx.count = n }
-            Given("adapter count is {int}") { (n: Int) -> ctx.count = n }
-            Then("currently learning count is {int}") { (n: Int) ->
+            Given("the adapter count is {int}") { params ->
+                val n = params[0] as Int
+                ctx.count = n
+            }
+            Given("adapter count is {int}") { params ->
+                val n = params[0] as Int
+                ctx.count = n
+            }
+            Then("currently learning count is {int}") { params ->
+                val n = params[0] as Int
                 kotlin.test.assertEquals(n, minOf(ctx.count, 10))
             }
         }
