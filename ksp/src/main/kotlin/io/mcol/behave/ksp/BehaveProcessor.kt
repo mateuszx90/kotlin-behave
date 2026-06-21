@@ -475,7 +475,7 @@ class BehaveProcessor(
             Regex("""(?<!\S)-?\d+(?!\S)""").findAll(text)
                 .filter { m ->
                     !inQuotes(m.range.first) &&
-                        none { tok -> m.range.first >= tok.pos && m.range.first <= tok.pos + 10 && tok.kind == Kind.NUMBER }
+                        none { tok -> m.range.first in (tok.pos..tok.pos) && tok.kind == Kind.NUMBER }
                 }
                 .forEach { m -> add(Tok(m.range.first, Kind.NUMBER, "int")) }
         }.sortedBy { it.pos }
