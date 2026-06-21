@@ -471,13 +471,13 @@ class BehaveProcessor(
             val coveredRanges = map { it.pos..(it.pos) } // approximate; refine below
             Regex("""(?<!\S)-?\d+\.\d+(?!\S)""").findAll(text)
                 .filter { m -> !inQuotes(m.range.first) && none { tok -> m.range.first in (tok.pos..tok.pos) } }
-                .forEach { add(Tok(it.range.first, Kind.NUMBER, "double")) }
+                .forEach { m -> add(Tok(m.range.first, Kind.NUMBER, "double")) }
             Regex("""(?<!\S)-?\d+(?!\S)""").findAll(text)
                 .filter { m ->
                     !inQuotes(m.range.first) &&
                         none { tok -> m.range.first >= tok.pos && m.range.first <= tok.pos + 10 && tok.kind == Kind.NUMBER }
                 }
-                .forEach { add(Tok(it.range.first, Kind.NUMBER, "int")) }
+                .forEach { m -> add(Tok(m.range.first, Kind.NUMBER, "int")) }
         }.sortedBy { it.pos }
 
         val placeholderNames = toks.filter { it.kind == Kind.PLACEHOLDER }.map { it.name }
