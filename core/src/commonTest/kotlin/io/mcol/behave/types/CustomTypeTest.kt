@@ -32,7 +32,10 @@ class CustomTypeTest {
         val defs =
             steps(::Ctx) {
                 parameterType<Color>("color", "[a-z]+") { Color.valueOf(it.uppercase()) }
-                Given("the background is {color}") { (c: Color) -> captured = c }
+                Given("the background is {color}") { params ->
+                    val c = params[0] as Color
+                    captured = c
+                }
             }
         val feature =
             Feature(
@@ -52,7 +55,10 @@ class CustomTypeTest {
         val defs =
             steps(::Ctx) {
                 parameterType<Cat>("cat") { row -> Cat(row["age"]!!.toInt(), row["color"]!!) }
-                Given("the following cats:") { (cats: List<Cat>) -> captured.addAll(cats) }
+                Given("the following cats:") { params ->
+                    val cats = params[0] as List<Cat>
+                    captured.addAll(cats)
+                }
             }
         val table =
             DataTable(
@@ -129,12 +135,18 @@ class CustomTypeTest {
         val a =
             steps({ Unit }) {
                 parameterType<String>("typeA", "[a-z]+") { it }
-                Given("step a with {typeA}") { (v: String) -> log.add("a:$v") }
+                Given("step a with {typeA}") { params ->
+                    val v = params[0] as String
+                    log.add("a:$v")
+                }
             }
         val b =
             steps({ Unit }) {
                 parameterType<String>("typeB", "[a-z]+") { it }
-                Given("step b with {typeB}") { (v: String) -> log.add("b:$v") }
+                Given("step b with {typeB}") { params ->
+                    val v = params[0] as String
+                    log.add("b:$v")
+                }
             }
         val combined = a + b
         val feature =

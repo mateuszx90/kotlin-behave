@@ -23,9 +23,13 @@ private val counterSteps =
         }
         After { hookLog.add("after") }
 
-        Given("the counter is {int}") { (n: Int) -> ctx.count = n }
+        Given("the counter is {int}") { params ->
+            val n = params[0] as Int
+            ctx.count = n
+        }
         When("I increment it") { ctx.count++ }
-        Then("the counter is {int}") { (n: Int) ->
+        Then("the counter is {int}") { params ->
+            val n = params[0] as Int
             kotlin.test.assertEquals(n, ctx.count)
         }
         Then("the setup hook ran") {

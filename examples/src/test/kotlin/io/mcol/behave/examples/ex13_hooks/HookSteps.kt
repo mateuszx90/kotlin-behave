@@ -70,8 +70,20 @@ val hookSteps = steps({ HookSteps() }) {
     }
 
     // Step registrations
-    When("I insert a user {string}") { (s: String) -> ctx.iInsertAUser(s) }
-    Then("the user {string} exists in the database") { (s: String) -> ctx.theUserExistsInTheDatabase(s) }
-    And("I delete the user {string}") { (s: String) -> ctx.iDeleteTheUser(s) }
-    Then("the user {string} does not exist in the database") { (s: String) -> ctx.theUserDoesNotExistInTheDatabase(s) }
+    When("I insert a user {string}") { params ->
+        val s = params[0] as String
+        ctx.iInsertAUser(s)
+    }
+    Then("the user {string} exists in the database") { params ->
+        val s = params[0] as String
+        ctx.theUserExistsInTheDatabase(s)
+    }
+    And("I delete the user {string}") { params ->
+        val s = params[0] as String
+        ctx.iDeleteTheUser(s)
+    }
+    Then("the user {string} does not exist in the database") { params ->
+        val s = params[0] as String
+        ctx.theUserDoesNotExistInTheDatabase(s)
+    }
 }

@@ -70,6 +70,15 @@ allprojects {
             }
         }
     }
+
+    // Always run the test task — never UP-TO-DATE. Suites here are pure-Kotlin
+    // (parser, code generator, KSP processor), all deterministic and quick (a few
+    // seconds), so paying the re-run cost rules out the "is the green status
+    // really fresh" doubt and matches Maven/surefire defaults consumers may
+    // expect. Compile / KSP / jar tasks still cache normally.
+    tasks.withType<Test>().configureEach {
+        outputs.upToDateWhen { false }
+    }
 }
 
 tasks.register("installGitHooks") {
