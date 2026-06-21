@@ -7,13 +7,15 @@ class Params(
     private val values: List<Any>,
     val dataTable: DataTable? = null,
 ) {
-    operator fun <T> component1(): T = values[0] as T
+    operator fun <T> get(index: Int): T = values[index] as T
 
-    operator fun <T> component2(): T = values[1] as T
+    operator fun <T> component1(): T = this[0]
 
-    operator fun <T> component3(): T = values[2] as T
+    operator fun <T> component2(): T = this[1]
 
-    operator fun <T> component4(): T = values[3] as T
+    operator fun <T> component3(): T = this[2]
 
-    operator fun <T> component5(): T = values[4] as T
+    operator fun <T> component4(): T = this[3]
+
+    operator fun <T> component5(): T = this[4]
 }

@@ -187,7 +187,7 @@ internal object CodeGenerator {
                 appendLine("                    }")
                 append("                    ctx.${step.methodName}(")
                 if (inlineParams.isNotEmpty()) {
-                    append(inlineParams.mapIndexed { i, p -> "params.component${i + 1}() as ${p.typeName}" }.joinToString(", "))
+                    append(inlineParams.mapIndexed { i, p -> "params[$i] as ${p.typeName}" }.joinToString(", "))
                     append(", rows")
                 } else {
                     append("rows")
@@ -197,7 +197,7 @@ internal object CodeGenerator {
                 // List<T> with no field info — fall back to raw DataTable rows
                 append("                    ctx.${step.methodName}(")
                 if (inlineParams.isNotEmpty()) {
-                    append(inlineParams.mapIndexed { i, p -> "params.component${i + 1}() as ${p.typeName}" }.joinToString(", "))
+                    append(inlineParams.mapIndexed { i, p -> "params[$i] as ${p.typeName}" }.joinToString(", "))
                     append(", ")
                 }
                 appendLine("params.dataTable!!.rows as ${listParam.typeName})")
@@ -205,27 +205,51 @@ internal object CodeGenerator {
             appendLine("                }")
         } else {
             // Inline params only — widen types for @BehaveCast and add conversion
-            val destructure =
-                step.params
-                    .mapIndexed { i, p ->
-                        val widening = if (i in step.castParams) wideningMap[step.castParams[i]] else null
-                        val destructType = widening?.second ?: p.typeName
-                        "p${i + 1}: $destructType"
-                    }.joinToString(", ")
-            val args =
-                step.params
-                    .mapIndexed { i, _ ->
-                        val narrowType = step.castParams[i]
-                        val widening = if (narrowType != null) wideningMap[narrowType] else null
-                        if (widening != null) {
-                            widening.third.replace("\$p", "p${i + 1}")
-                        } else {
-                            "p${i + 1}"
-                        }
-                    }.joinToString(", ")
-            appendLine("                $keyword(\"$expr\") { ($destructure) ->")
-            appendLine("                    ctx.${step.methodName}($args)")
-            appendLine("                }")
+            if (step.params.size <= 5) {
+                val destructure =
+                    step.params
+                        .mapIndexed { i, p ->
+                            val widening = if (i in step.castParams) wideningMap[step.castParams[i]] else null
+                            val destructType = widening?.second ?: p.typeName
+                            "p${i + 1}: $destructType"
+                        }.joinToString(", ")
+                val args =
+                    step.params
+                        .mapIndexed { i, _ ->
+                            val narrowType = step.castParams[i]
+                            val widening = if (narrowType != null) wideningMap[narrowType] else null
+                            if (widening != null) {
+                                widening.third.replace("\$p", "p${i + 1}")
+                            } else {
+                                "p${i + 1}"
+                            }
+                        }.joinToString(", ")
+                appendLine("                $keyword(\"$expr\") { ($destructure) ->")
+                appendLine("                    ctx.${step.methodName}($args)")
+                appendLine("                }")
+            } else {
+                // For 6+ parameters, use indexed access instead of destructuring
+                appendLine("                $keyword(\"$expr\") { params ->")
+                step.params.forEachIndexed { i, p ->
+                    val narrowType = step.castParams[i]
+                    val widening = if (narrowType != null) wideningMap[narrowType] else null
+                    val destructType = widening?.second ?: p.typeName
+                    appendLine("                    val p${i + 1} = params[$i] as $destructType")
+                }
+                val args =
+                    step.params
+                        .mapIndexed { i, _ ->
+                            val narrowType = step.castParams[i]
+                            val widening = if (narrowType != null) wideningMap[narrowType] else null
+                            if (widening != null) {
+                                widening.third.replace("\$p", "p${i + 1}")
+                            } else {
+                                "p${i + 1}"
+                            }
+                        }.joinToString(", ")
+                appendLine("                    ctx.${step.methodName}($args)")
+                appendLine("                }")
+            }
         }
     }
 
