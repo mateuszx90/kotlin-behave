@@ -30,6 +30,7 @@ private data class MixinInfo(val qualifiedName: String, val simpleName: String)
 private data class TypeConverterInfo(
     val functionName: String,
     val returnType: String,
+    val paramCount: Int, // number of parameters the converter function takes
 )
 
 private data class StepBuildContext(
@@ -183,9 +184,11 @@ class BehaveProcessor(
                         append(decl.simpleName.asString())
                     }
                     val funcName = func.simpleName.asString()
+                    val paramCount = func.parameters.size
                     converters[returnTypeName] = TypeConverterInfo(
                         functionName = funcName,
                         returnType = returnTypeName,
+                        paramCount = paramCount,
                     )
                 }
             }
@@ -437,6 +440,7 @@ class BehaveProcessor(
                 customConverters[idx] = io.mcol.behave.ksp.CodeGenerator.ConverterInfo(
                     functionName = converterInfo.functionName,
                     returnType = converterInfo.returnType,
+                    paramCount = converterInfo.paramCount,
                 )
             } else {
                 // No custom converter found, assume it's an enum that uses valueOf()

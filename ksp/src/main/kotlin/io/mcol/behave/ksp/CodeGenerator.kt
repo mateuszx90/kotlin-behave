@@ -18,6 +18,7 @@ internal object CodeGenerator {
     data class ConverterInfo(
         val functionName: String,
         val returnType: String,
+        val paramCount: Int,
     )
 
     data class GeneratedStep(
@@ -96,10 +97,23 @@ internal object CodeGenerator {
             if (step.params.isEmpty()) {
                 appendLine("    suspend fun ${step.methodName}()")
             } else {
+                // Skip parameters consumed by multi-param converters
+                val skippedIndices = mutableSetOf<Int>()
+                for ((idx, converter) in step.typeConverters) {
+                    if (converter.paramCount > 1) {
+                        for (i in 1 until converter.paramCount) {
+                            skippedIndices.add(idx + i)
+                        }
+                    }
+                }
                 val paramList = step.params.mapIndexed { idx, param ->
-                    val paramType = step.typeConversions[idx] ?: step.typeConverters[idx]?.returnType ?: param.typeName
-                    "${param.name}: $paramType"
-                }.joinToString(", ")
+                    if (idx in skippedIndices) {
+                        null
+                    } else {
+                        val paramType = step.typeConversions[idx] ?: step.typeConverters[idx]?.returnType ?: param.typeName
+                        "${param.name}: $paramType"
+                    }
+                }.filterNotNull().joinToString(", ")
                 appendLine("    suspend fun ${step.methodName}($paramList)")
             }
             appendLine()
@@ -216,7 +230,19 @@ internal object CodeGenerator {
         } else {
             // Inline params only — use indexed access for unlimited parameters
             appendLine("                $keyword(\"$expr\") { params ->")
+            // Track which param indices are consumed by multi-param converters
+            val consumedIndices = mutableSetOf<Int>()
+            for ((idx, converter) in step.typeConverters) {
+                if (converter.paramCount > 1) {
+                    for (i in 1 until converter.paramCount) {
+                        consumedIndices.add(idx + i)
+                    }
+                }
+            }
+
             step.params.forEachIndexed { i, p ->
+                if (i in consumedIndices) return@forEachIndexed // Skip consumed parameters
+
                 val narrowType = step.castParams[i]
                 val widening = if (narrowType != null) wideningMap[narrowType] else null
                 val destructType = widening?.second ?: p.typeName
@@ -224,8 +250,15 @@ internal object CodeGenerator {
                 val converter = step.typeConverters[i]
 
                 if (converter != null) {
-                    // Use custom type converter function
-                    appendLine("                    val p${i + 1} = (params[$i] as String).$converter()")
+                    // Use custom type converter function with multiple parameters if needed
+                    if (converter.paramCount == 1) {
+                        appendLine("                    val p${i + 1} = (params[$i] as String).${converter.functionName}()")
+                    } else {
+                        val converterParams = (0 until converter.paramCount).joinToString(", ") { idx ->
+                            "params[${i + idx}] as ${step.params.getOrNull(i + idx)?.typeName ?: "Any"}"
+                        }
+                        appendLine("                    val p${i + 1} = ${converter.functionName}($converterParams)")
+                    }
                 } else if (conversion != null) {
                     // Use enum valueOf()
                     appendLine("                    val p${i + 1} = $conversion.valueOf((params[$i] as String).uppercase())")
@@ -236,14 +269,18 @@ internal object CodeGenerator {
             val args =
                 step.params
                     .mapIndexed { i, _ ->
-                        val narrowType = step.castParams[i]
-                        val widening = if (narrowType != null) wideningMap[narrowType] else null
-                        if (widening != null) {
-                            widening.third.replace("\$p", "p${i + 1}")
+                        if (i in consumedIndices) {
+                            null
                         } else {
-                            "p${i + 1}"
+                            val narrowType = step.castParams[i]
+                            val widening = if (narrowType != null) wideningMap[narrowType] else null
+                            if (widening != null) {
+                                widening.third.replace("\$p", "p${i + 1}")
+                            } else {
+                                "p${i + 1}"
+                            }
                         }
-                    }.joinToString(", ")
+                    }.filterNotNull().joinToString(", ")
             appendLine("                    ctx.${step.methodName}($args)")
             appendLine("                }")
         }
