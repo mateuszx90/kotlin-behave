@@ -28,7 +28,8 @@ private data class MixinMethodKey(val name: String, val paramTypes: List<String>
 private data class MixinInfo(val qualifiedName: String, val simpleName: String)
 
 private data class TypeConverterInfo(
-    val functionName: String,
+    val functionName: String, // simple name
+    val qualifiedName: String, // fully qualified name
     val returnType: String,
     val paramCount: Int, // number of parameters the converter function takes
 )
@@ -184,9 +185,16 @@ class BehaveProcessor(
                         append(decl.simpleName.asString())
                     }
                     val funcName = func.simpleName.asString()
+                    val funcPkg = func.packageName.asString()
+                    val qualifiedName = if (funcPkg.isNotEmpty()) {
+                        "$funcPkg.$funcName"
+                    } else {
+                        funcName
+                    }
                     val paramCount = func.parameters.size
                     converters[returnTypeName] = TypeConverterInfo(
                         functionName = funcName,
+                        qualifiedName = qualifiedName,
                         returnType = returnTypeName,
                         paramCount = paramCount,
                     )
@@ -467,6 +475,7 @@ class BehaveProcessor(
             if (converterInfo != null) {
                 customConverters[idx] = io.mcol.behave.ksp.CodeGenerator.ConverterInfo(
                     functionName = converterInfo.functionName,
+                    qualifiedName = converterInfo.qualifiedName,
                     returnType = converterInfo.returnType,
                     paramCount = converterInfo.paramCount,
                 )

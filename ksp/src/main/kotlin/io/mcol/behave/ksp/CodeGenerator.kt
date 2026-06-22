@@ -16,7 +16,8 @@ internal object CodeGenerator {
     )
 
     data class ConverterInfo(
-        val functionName: String,
+        val functionName: String, // simple name
+        val qualifiedName: String, // fully qualified name (package.name)
         val returnType: String,
         val paramCount: Int,
     )
@@ -257,7 +258,7 @@ internal object CodeGenerator {
                         val converterParams = (0 until converter.paramCount).joinToString(", ") { idx ->
                             "params[${i + idx}] as ${step.params.getOrNull(i + idx)?.typeName ?: "Any"}"
                         }
-                        appendLine("                    val p${i + 1} = ${converter.functionName}($converterParams)")
+                        appendLine("                    val p${i + 1} = ${converter.qualifiedName}($converterParams)")
                     }
                 } else if (conversion != null) {
                     // Use enum valueOf()

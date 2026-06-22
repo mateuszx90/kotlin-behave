@@ -16,6 +16,8 @@ complexity:
     threshold: 6
   ComplexCondition:
     threshold: 5
+  LargeClass:
+    threshold: 1000
 
 style:
   MaxLineLength:
