@@ -27,6 +27,21 @@ private data class MixinMethodKey(val name: String, val paramTypes: List<String>
 
 private data class MixinInfo(val qualifiedName: String, val simpleName: String)
 
+private data class TypeConverterInfo(
+    val functionName: String,
+    val returnType: String,
+)
+
+private data class StepBuildContext(
+    val typeMappings: List<io.mcol.behave.ksp.CodeGenerator.TypeMapping>,
+    val templatesByNormKey: Map<String, List<FeatureFileParser.ParsedStep>>,
+    val behaveCasts: Map<String, Set<Int>>,
+    val typeConversions: Map<String, Map<Int, String>>,
+    val classDecl: KSClassDeclaration,
+    val typeConverters: Map<String, TypeConverterInfo>,
+    val resolver: Resolver,
+)
+
 class BehaveProcessor(
     private val codeGenerator: CodeGenerator,
     private val logger: KSPLogger,
@@ -57,8 +72,11 @@ class BehaveProcessor(
 
         stepToFeatures = buildStepToFeaturesMap(symbols)
 
+        // Collect all @TypeConverter functions
+        val typeConverters = collectTypeConverters(resolver)
+
         for (classDecl in symbols) {
-            processClass(classDecl, resolver)
+            processClass(classDecl, resolver, typeConverters)
         }
 
         return emptyList()
@@ -146,6 +164,34 @@ class BehaveProcessor(
             .toList()
     }
 
+    private fun collectTypeConverters(resolver: Resolver): Map<String, TypeConverterInfo> {
+        // Map from target type FQN to converter function info
+        val converters = mutableMapOf<String, TypeConverterInfo>()
+        val converterAnnotation = "io.mcol.behave.annotations.TypeConverter"
+        resolver.getSymbolsWithAnnotation(converterAnnotation)
+            .filterIsInstance<KSFunctionDeclaration>()
+            .forEach { func ->
+                val returnType = func.returnType?.resolve()
+                if (returnType != null) {
+                    val returnTypeName = buildString {
+                        val decl = returnType.declaration
+                        val pkg = (decl as? KSClassDeclaration)?.packageName?.asString() ?: ""
+                        if (pkg.isNotEmpty()) {
+                            append(pkg)
+                            append(".")
+                        }
+                        append(decl.simpleName.asString())
+                    }
+                    val funcName = func.simpleName.asString()
+                    converters[returnTypeName] = TypeConverterInfo(
+                        functionName = funcName,
+                        returnType = returnTypeName,
+                    )
+                }
+            }
+        return converters
+    }
+
     private fun buildMixinRegistry(mixins: List<KSClassDeclaration>): Map<MixinMethodKey, MixinInfo> {
         val registry = mutableMapOf<MixinMethodKey, MixinInfo>()
         for (mixin in mixins) {
@@ -193,7 +239,7 @@ class BehaveProcessor(
 
     private fun canonicalGeneratedParamType(typeName: String): String = typeName.removePrefix("kotlin.").removePrefix("kotlin.collections.")
 
-    private fun processClass(classDecl: KSClassDeclaration, resolver: Resolver) {
+    private fun processClass(classDecl: KSClassDeclaration, resolver: Resolver, typeConverters: Map<String, TypeConverterInfo>) {
         val className = classDecl.simpleName.asString()
         val packageName = classDecl.packageName.asString()
 
@@ -289,8 +335,17 @@ class BehaveProcessor(
         }
 
         // Build GeneratedStep list
+        val buildContext = StepBuildContext(
+            typeMappings = typeMappings,
+            templatesByNormKey = templatesByNormKey,
+            behaveCasts = behaveCasts,
+            typeConversions = typeConversions,
+            classDecl = classDecl,
+            typeConverters = typeConverters,
+            resolver = resolver,
+        )
         val generatedSteps = parsed.steps.mapIndexed { i, step ->
-            buildGeneratedStep(step, methodNames[i], typeMappings, templatesByNormKey, behaveCasts, typeConversions, classDecl)
+            buildGeneratedStep(step, methodNames[i], buildContext)
         }
 
         // Validate concrete values against declared placeholder types
@@ -349,13 +404,9 @@ class BehaveProcessor(
     private fun buildGeneratedStep(
         step: FeatureFileParser.ParsedStep,
         methodName: String,
-        typeMappings: List<io.mcol.behave.ksp.CodeGenerator.TypeMapping>,
-        templatesByNormKey: Map<String, List<FeatureFileParser.ParsedStep>>,
-        behaveCasts: Map<String, Set<Int>>,
-        typeConversions: Map<String, Map<Int, String>>,
-        classDecl: KSClassDeclaration,
+        ctx: StepBuildContext,
     ): io.mcol.behave.ksp.CodeGenerator.GeneratedStep {
-        val params = resolveParams(step, typeMappings, classDecl)
+        val params = resolveParams(step, ctx.typeMappings, ctx.classDecl)
         var rawExpr = io.mcol.behave.ksp.CodeGenerator.escapeStepExpression(
             io.mcol.behave.ksp.CodeGenerator.replaceOutlineVariables(
                 io.mcol.behave.ksp.CodeGenerator.replaceNumberLiterals(
@@ -365,17 +416,34 @@ class BehaveProcessor(
         )
         if (rawExpr.contains("{word}")) {
             val normKey = FeatureFileParser.normalise(step.keyword, step.text)
-            val siblings = templatesByNormKey[normKey] ?: emptyList()
+            val siblings = ctx.templatesByNormKey[normKey] ?: emptyList()
             if (siblings.any { sibling -> Regex("\"[^\"]*\"").containsMatchIn(sibling.text) }) {
                 rawExpr = rawExpr.replace("{word}", "{string}")
             }
         }
-        val castIndices = behaveCasts[methodName] ?: emptySet()
+        val castIndices = ctx.behaveCasts[methodName] ?: emptySet()
         val castParams = mutableMapOf<Int, String>()
         for (idx in castIndices) {
             if (idx < params.size) castParams[idx] = params[idx].typeName
         }
-        val conversions = typeConversions[methodName] ?: emptyMap()
+        val conversions = ctx.typeConversions[methodName] ?: emptyMap()
+
+        // Separate enum conversions from custom type conversions
+        val enumConversions = mutableMapOf<Int, String>()
+        val customConverters = mutableMapOf<Int, io.mcol.behave.ksp.CodeGenerator.ConverterInfo>()
+        for ((idx, typeName) in conversions) {
+            val converterInfo = ctx.typeConverters[typeName]
+            if (converterInfo != null) {
+                customConverters[idx] = io.mcol.behave.ksp.CodeGenerator.ConverterInfo(
+                    functionName = converterInfo.functionName,
+                    returnType = converterInfo.returnType,
+                )
+            } else {
+                // No custom converter found, assume it's an enum that uses valueOf()
+                enumConversions[idx] = typeName
+            }
+        }
+
         return io.mcol.behave.ksp.CodeGenerator.GeneratedStep(
             methodName = methodName,
             params = params,
@@ -383,7 +451,8 @@ class BehaveProcessor(
             originalKeyword = step.keyword,
             originalText = step.text,
             castParams = castParams,
-            typeConversions = conversions,
+            typeConversions = enumConversions,
+            typeConverters = customConverters,
         )
     }
 

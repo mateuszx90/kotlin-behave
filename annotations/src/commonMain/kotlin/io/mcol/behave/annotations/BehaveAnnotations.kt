@@ -119,29 +119,59 @@ annotation class BehaveCast(
 /**
  * Marks a step parameter for automatic type conversion during code generation.
  *
- * When a step parameter is annotated with `@Type`, the generated step definition
- * will automatically convert the string parameter to the specified type using
- * the type's companion object or enum `valueOf()` method.
+ * For enums, the generated step definition automatically calls `Type.valueOf()`.
+ * For custom types, a `@TypeConverter` function must exist in the same compilation unit.
  *
- * Example:
+ * Example with enum:
  * ```kotlin
  * override suspend fun dropItemType(@Type(Item::class) item: Item) {
  *     test.drop(item)
  * }
  * ```
  *
- * The generator will create:
+ * Example with custom type:
  * ```kotlin
- * When("Drop item type {string}") { params ->
- *     val p1 = Item.valueOf((params[0] as String).uppercase())
- *     ctx.dropItemType(p1)
+ * data class Size(val width: Int, val height: Int)
+ *
+ * @TypeConverter
+ * fun String.toSize(): Size {
+ *     val parts = this.split(" x ")
+ *     return Size(parts[0].toInt(), parts[1].toInt())
+ * }
+ *
+ * override suspend fun iHaveBoardXY(@Type(Size::class) size: Size) {
+ *     // Automatically calls String.toSize()
  * }
  * ```
  *
- * @param type The target type to convert to (typically an enum or data class)
+ * @param type The target type to convert to
  */
 @Target(AnnotationTarget.VALUE_PARAMETER)
 @Retention(AnnotationRetention.SOURCE)
 annotation class Type(
     val type: KClass<*>,
 )
+
+/**
+ * Marks a function as a type converter for use with `@Type` annotations.
+ *
+ * The converter function should:
+ * - Take a String parameter
+ * - Return the target type
+ * - Be in the same compilation unit as the steps that use it
+ *
+ * Example:
+ * ```kotlin
+ * @TypeConverter
+ * fun String.toSize(): Size {
+ *     val parts = this.split(" x ")
+ *     return Size(parts[0].toInt(), parts[1].toInt())
+ * }
+ * ```
+ *
+ * When a step parameter is annotated with `@Type(Size::class)`, the generator
+ * will call this converter automatically.
+ */
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.SOURCE)
+annotation class TypeConverter
