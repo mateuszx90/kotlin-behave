@@ -488,35 +488,57 @@ class BehaveProcessor(
         classDecl: KSClassDeclaration,
     ): Map<String, Map<Int, String>> {
         val typeConversions = mutableMapOf<String, Map<Int, String>>()
+
+        // Check direct class methods
         for (func in classDecl.getDeclaredFunctions()) {
-            val funcName = func.simpleName.asString()
-            val conversions = mutableMapOf<Int, String>()
-            for ((idx, param) in func.parameters.withIndex()) {
-                val typeAnnotation = param.annotations.firstOrNull { it.shortName.asString() == "Type" }
-                if (typeAnnotation != null) {
-                    val typeArg = typeAnnotation.arguments.firstOrNull { it.name?.asString() == "type" }
-                    if (typeArg != null) {
-                        val typeValue = typeArg.value
-                        if (typeValue is KSType) {
-                            val typeName = buildString {
-                                val decl = typeValue.declaration
-                                val pkg = (decl as? KSClassDeclaration)?.packageName?.asString() ?: ""
-                                if (pkg.isNotEmpty()) {
-                                    append(pkg)
-                                    append(".")
-                                }
-                                append(decl.simpleName.asString())
+            val conversions = extractTypeConversions(func)
+            if (conversions.isNotEmpty()) {
+                typeConversions[func.simpleName.asString()] = conversions
+            }
+        }
+
+        // Also check @StepsMixin interfaces
+        for (superType in classDecl.superTypes) {
+            val superTypeDecl = superType.resolve().declaration as? KSClassDeclaration ?: continue
+            if (superTypeDecl.classKind != ClassKind.INTERFACE) continue
+            val isMixin = superTypeDecl.annotations.any { it.shortName.asString() == "StepsMixin" }
+            if (!isMixin) continue
+
+            for (func in superTypeDecl.getDeclaredFunctions()) {
+                val conversions = extractTypeConversions(func)
+                if (conversions.isNotEmpty()) {
+                    typeConversions[func.simpleName.asString()] = conversions
+                }
+            }
+        }
+
+        return typeConversions
+    }
+
+    private fun extractTypeConversions(func: KSFunctionDeclaration): Map<Int, String> {
+        val conversions = mutableMapOf<Int, String>()
+        for ((idx, param) in func.parameters.withIndex()) {
+            val typeAnnotation = param.annotations.firstOrNull { it.shortName.asString() == "Type" }
+            if (typeAnnotation != null) {
+                val typeArg = typeAnnotation.arguments.firstOrNull { it.name?.asString() == "type" }
+                if (typeArg != null) {
+                    val typeValue = typeArg.value
+                    if (typeValue is KSType) {
+                        val typeName = buildString {
+                            val decl = typeValue.declaration
+                            val pkg = (decl as? KSClassDeclaration)?.packageName?.asString() ?: ""
+                            if (pkg.isNotEmpty()) {
+                                append(pkg)
+                                append(".")
                             }
-                            conversions[idx] = typeName
+                            append(decl.simpleName.asString())
                         }
+                        conversions[idx] = typeName
                     }
                 }
             }
-            if (conversions.isNotEmpty()) {
-                typeConversions[funcName] = conversions
-            }
         }
-        return typeConversions
+        return conversions
     }
 
     private fun resolveTypeMappings(
