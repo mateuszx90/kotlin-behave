@@ -266,6 +266,9 @@ class BehaveProcessor(
             }
         }
 
+        // Read @Type from implementing class methods
+        val typeConversions = resolveTypeConversions(classDecl)
+
         // Parse feature file
         val parsed = FeatureFileParser.parse(featureFile.readText())
         for (error in parsed.errors) {
@@ -287,7 +290,7 @@ class BehaveProcessor(
 
         // Build GeneratedStep list
         val generatedSteps = parsed.steps.mapIndexed { i, step ->
-            buildGeneratedStep(step, methodNames[i], typeMappings, templatesByNormKey, behaveCasts, classDecl)
+            buildGeneratedStep(step, methodNames[i], typeMappings, templatesByNormKey, behaveCasts, typeConversions, classDecl)
         }
 
         // Validate concrete values against declared placeholder types
@@ -349,6 +352,7 @@ class BehaveProcessor(
         typeMappings: List<io.mcol.behave.ksp.CodeGenerator.TypeMapping>,
         templatesByNormKey: Map<String, List<FeatureFileParser.ParsedStep>>,
         behaveCasts: Map<String, Set<Int>>,
+        typeConversions: Map<String, Map<Int, String>>,
         classDecl: KSClassDeclaration,
     ): io.mcol.behave.ksp.CodeGenerator.GeneratedStep {
         val params = resolveParams(step, typeMappings, classDecl)
@@ -371,6 +375,7 @@ class BehaveProcessor(
         for (idx in castIndices) {
             if (idx < params.size) castParams[idx] = params[idx].typeName
         }
+        val conversions = typeConversions[methodName] ?: emptyMap()
         return io.mcol.behave.ksp.CodeGenerator.GeneratedStep(
             methodName = methodName,
             params = params,
@@ -378,6 +383,7 @@ class BehaveProcessor(
             originalKeyword = step.keyword,
             originalText = step.text,
             castParams = castParams,
+            typeConversions = conversions,
         )
     }
 
@@ -404,6 +410,41 @@ class BehaveProcessor(
                 shouldEmit = !rowClassName.contains("."),
             )
         }
+
+    private fun resolveTypeConversions(
+        classDecl: KSClassDeclaration,
+    ): Map<String, Map<Int, String>> {
+        val typeConversions = mutableMapOf<String, Map<Int, String>>()
+        for (func in classDecl.getDeclaredFunctions()) {
+            val funcName = func.simpleName.asString()
+            val conversions = mutableMapOf<Int, String>()
+            for ((idx, param) in func.parameters.withIndex()) {
+                val typeAnnotation = param.annotations.firstOrNull { it.shortName.asString() == "Type" }
+                if (typeAnnotation != null) {
+                    val typeArg = typeAnnotation.arguments.firstOrNull { it.name?.asString() == "type" }
+                    if (typeArg != null) {
+                        val typeValue = typeArg.value
+                        if (typeValue is KSType) {
+                            val typeName = buildString {
+                                val decl = typeValue.declaration
+                                val pkg = (decl as? KSClassDeclaration)?.packageName?.asString() ?: ""
+                                if (pkg.isNotEmpty()) {
+                                    append(pkg)
+                                    append(".")
+                                }
+                                append(decl.simpleName.asString())
+                            }
+                            conversions[idx] = typeName
+                        }
+                    }
+                }
+            }
+            if (conversions.isNotEmpty()) {
+                typeConversions[funcName] = conversions
+            }
+        }
+        return typeConversions
+    }
 
     private fun resolveTypeMappings(
         behaveTypes: List<Triple<String, KSType?, List<String>>>,
