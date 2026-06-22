@@ -115,3 +115,33 @@ annotation class DivergentStep
 annotation class BehaveCast(
     val lossy: Boolean = true,
 )
+
+/**
+ * Marks a step parameter for automatic type conversion during code generation.
+ *
+ * When a step parameter is annotated with `@Type`, the generated step definition
+ * will automatically convert the string parameter to the specified type using
+ * the type's companion object or enum `valueOf()` method.
+ *
+ * Example:
+ * ```kotlin
+ * override suspend fun dropItemType(@Type(Item::class) item: Item) {
+ *     test.drop(item)
+ * }
+ * ```
+ *
+ * The generator will create:
+ * ```kotlin
+ * When("Drop item type {string}") { params ->
+ *     val p1 = Item.valueOf((params[0] as String).uppercase())
+ *     ctx.dropItemType(p1)
+ * }
+ * ```
+ *
+ * @param type The target type to convert to (typically an enum or data class)
+ */
+@Target(AnnotationTarget.VALUE_PARAMETER)
+@Retention(AnnotationRetention.SOURCE)
+annotation class Type(
+    val type: KClass<*>,
+)

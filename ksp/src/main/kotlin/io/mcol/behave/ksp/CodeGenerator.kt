@@ -22,6 +22,7 @@ internal object CodeGenerator {
         val originalKeyword: String,
         val originalText: String,
         val castParams: Map<Int, String> = emptyMap(), // param index → original narrow type (e.g. "Int")
+        val typeConversions: Map<Int, String> = emptyMap(), // param index → fully qualified type name (e.g. "com.example.Item")
     )
 
     data class GeneratedRowClass(
@@ -89,7 +90,10 @@ internal object CodeGenerator {
             if (step.params.isEmpty()) {
                 appendLine("    suspend fun ${step.methodName}()")
             } else {
-                val paramList = step.params.joinToString(", ") { "${it.name}: ${it.typeName}" }
+                val paramList = step.params.mapIndexed { idx, param ->
+                    val paramType = step.typeConversions[idx] ?: param.typeName
+                    "${param.name}: $paramType"
+                }.joinToString(", ")
                 appendLine("    suspend fun ${step.methodName}($paramList)")
             }
             appendLine()
@@ -210,7 +214,13 @@ internal object CodeGenerator {
                 val narrowType = step.castParams[i]
                 val widening = if (narrowType != null) wideningMap[narrowType] else null
                 val destructType = widening?.second ?: p.typeName
-                appendLine("                    val p${i + 1} = params[$i] as $destructType")
+                val conversion = step.typeConversions[i]
+
+                if (conversion != null) {
+                    appendLine("                    val p${i + 1} = $conversion.valueOf((params[$i] as String).uppercase())")
+                } else {
+                    appendLine("                    val p${i + 1} = params[$i] as $destructType")
+                }
             }
             val args =
                 step.params
