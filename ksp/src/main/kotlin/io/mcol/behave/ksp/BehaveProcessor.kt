@@ -195,6 +195,42 @@ class BehaveProcessor(
         return converters
     }
 
+    private fun matchStepsToMixins(
+        generatedSteps: List<io.mcol.behave.ksp.CodeGenerator.GeneratedStep>,
+    ): Pair<Map<String, String>, LinkedHashSet<String>> {
+        val inheritedByMethod = mutableMapOf<String, String>()
+        val mixinSimpleNames = linkedSetOf<String>()
+        for (step in generatedSteps) {
+            val paramTypes = getConvertedParamTypes(step)
+            val key = MixinMethodKey(step.methodName, paramTypes)
+            val info = mixinRegistry[key] ?: continue
+            inheritedByMethod[step.methodName] = info.qualifiedName
+            mixinSimpleNames.add(info.qualifiedName)
+        }
+        return inheritedByMethod to mixinSimpleNames
+    }
+
+    private fun getConvertedParamTypes(step: io.mcol.behave.ksp.CodeGenerator.GeneratedStep): List<String> {
+        val consumedIndices = mutableSetOf<Int>()
+        for ((idx, converter) in step.typeConverters) {
+            if (converter.paramCount > 1) {
+                for (i in 1 until converter.paramCount) {
+                    consumedIndices.add(idx + i)
+                }
+            }
+        }
+
+        return step.params.mapIndexed { idx, param ->
+            if (idx in consumedIndices) {
+                null
+            } else {
+                step.typeConversions[idx]?.let { canonicalGeneratedParamType(it) }
+                    ?: step.typeConverters[idx]?.returnType?.let { canonicalGeneratedParamType(it) }
+                    ?: canonicalGeneratedParamType(param.typeName)
+            }
+        }.filterNotNull()
+    }
+
     private fun buildMixinRegistry(mixins: List<KSClassDeclaration>): Map<MixinMethodKey, MixinInfo> {
         val registry = mutableMapOf<MixinMethodKey, MixinInfo>()
         for (mixin in mixins) {
@@ -359,15 +395,7 @@ class BehaveProcessor(
         // Match each generated step against the mixin registry. A step whose
         // (methodName, paramTypes) matches a @StepsMixin method becomes "inherited" —
         // omitted from the spec's abstract methods, with the spec extending that mixin.
-        val inheritedByMethod = mutableMapOf<String, String>() // method name -> qualified mixin
-        val mixinSimpleNames = linkedSetOf<String>()
-        for (step in generatedSteps) {
-            val paramTypes = step.params.map { canonicalGeneratedParamType(it.typeName) }
-            val key = MixinMethodKey(step.methodName, paramTypes)
-            val info = mixinRegistry[key] ?: continue
-            inheritedByMethod[step.methodName] = info.qualifiedName
-            mixinSimpleNames.add(info.qualifiedName)
-        }
+        val (inheritedByMethod, mixinSimpleNames) = matchStepsToMixins(generatedSteps)
 
         // Detect cross-feature step duplication that's NOT covered by a mixin and NOT
         // explicitly marked @DivergentStep. Emits errors that fail the build.

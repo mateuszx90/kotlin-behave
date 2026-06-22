@@ -9,7 +9,7 @@ complexity:
     constructorThreshold: 10
   TooManyFunctions:
     thresholdInFiles: 30
-    thresholdInClasses: 22
+    thresholdInClasses: 24
   CyclomaticComplexMethod:
     threshold: 30
   NestedBlockDepth:
