@@ -15,6 +15,11 @@ internal object CodeGenerator {
         val typeName: String, // Kotlin type name (e.g. "String", "Int", "List<CatRow>")
     )
 
+    data class ConverterInfo(
+        val functionName: String,
+        val returnType: String,
+    )
+
     data class GeneratedStep(
         val methodName: String,
         val params: List<StepParam>,
@@ -23,6 +28,7 @@ internal object CodeGenerator {
         val originalText: String,
         val castParams: Map<Int, String> = emptyMap(), // param index → original narrow type (e.g. "Int")
         val typeConversions: Map<Int, String> = emptyMap(), // param index → fully qualified type name (e.g. "com.example.Item")
+        val typeConverters: Map<Int, ConverterInfo> = emptyMap(), // param index → converter function and return type
     )
 
     data class GeneratedRowClass(
@@ -91,7 +97,7 @@ internal object CodeGenerator {
                 appendLine("    suspend fun ${step.methodName}()")
             } else {
                 val paramList = step.params.mapIndexed { idx, param ->
-                    val paramType = step.typeConversions[idx] ?: param.typeName
+                    val paramType = step.typeConversions[idx] ?: step.typeConverters[idx]?.returnType ?: param.typeName
                     "${param.name}: $paramType"
                 }.joinToString(", ")
                 appendLine("    suspend fun ${step.methodName}($paramList)")
@@ -215,8 +221,13 @@ internal object CodeGenerator {
                 val widening = if (narrowType != null) wideningMap[narrowType] else null
                 val destructType = widening?.second ?: p.typeName
                 val conversion = step.typeConversions[i]
+                val converter = step.typeConverters[i]
 
-                if (conversion != null) {
+                if (converter != null) {
+                    // Use custom type converter function
+                    appendLine("                    val p${i + 1} = (params[$i] as String).$converter()")
+                } else if (conversion != null) {
+                    // Use enum valueOf()
                     appendLine("                    val p${i + 1} = $conversion.valueOf((params[$i] as String).uppercase())")
                 } else {
                     appendLine("                    val p${i + 1} = params[$i] as $destructType")
