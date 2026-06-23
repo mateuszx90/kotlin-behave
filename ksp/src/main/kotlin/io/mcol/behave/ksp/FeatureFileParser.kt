@@ -103,13 +103,13 @@ internal object FeatureFileParser {
                     currentSectionIndent = lineIndent
                     lastRealKeyword = ""
                 }
-                line.startsWith("Scenario:") -> {
+                line.startsWith("Scenario:") || line.startsWith("Example:") -> {
                     missingExamplesErrorIfNeeded(inOutline, outlineHadExamples, outlineSteps, outlineLineNumber, outlineName)
                         ?.let { errors.add(it) }
                     inOutline = false
                     outlineHadExamples = false
                     inOrphanedGroup = false
-                    currentScenarioName = line.removePrefix("Scenario:").trim()
+                    currentScenarioName = line.substringAfter(':').trim()
                     currentSectionIndent = lineIndent
                     lastRealKeyword = ""
                 }
@@ -125,8 +125,8 @@ internal object FeatureFileParser {
                 }
             }
 
-            // Expand Scenario Outline Examples into allRawSteps
-            if (line.startsWith("Examples:")) {
+            // Expand Scenario Outline Examples into allRawSteps ("Scenarios:" is a synonym)
+            if (line.startsWith("Examples:") || line.startsWith("Scenarios:")) {
                 outlineHadExamples = true
                 expandExamples(lines, i, outlineSteps, outlineName, allRawSteps, errors, lineNumber)
                 i++
