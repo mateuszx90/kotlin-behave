@@ -119,7 +119,7 @@ Reguła projektu: **każdy fix = feature file reprodukujący problem** (`example
 - ✅ **F4** `Example:` / `Scenarios:` synonimy (oba parsery)
 - ✅ **F5** escapowanie `\| \\ \n` w komórkach (oba parsery)
 - ✅ **F6** Doc Strings (`"""` / ` ``` `) — model `Step.docString`, oba parsery, codegen (parametr `docString: String`), runtime threading, przykład `ex21`
-- ⏳ **F7** `Rule:` (Gherkin 6+)
+- ✅ **F7** `Rule:` (Gherkin 6+) — oba parsery; runtime składa Rule-Background na scenariusze reguły (kolejność: feature-bg → rule-bg → kroki); KSP parsuje kroki pod regułą
 - ⏳ **F8** i18n / `# language:`
 
 ---
