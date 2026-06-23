@@ -75,11 +75,11 @@ object GherkinParser {
                     isBackground = true
                     pendingTags = emptySet()
                 }
-                line.startsWith("Scenario Outline:") -> {
+                line.startsWith("Scenario Outline:") || line.startsWith("Scenario Template:") -> {
                     flushScenario()
                     currentScenarioTags = pendingTags
                     pendingTags = emptySet()
-                    currentScenarioName = line.removePrefix("Scenario Outline:").trim()
+                    currentScenarioName = line.substringAfter(':').trim()
                     isOutline = true
                 }
                 line.startsWith("Scenario:") -> {

@@ -181,6 +181,27 @@ class GherkinParserTest {
     }
 
     @Test
+    fun `Scenario Template is treated like Scenario Outline`() {
+        val input = """
+            Feature: F
+
+              Scenario Template: counts
+                Given <count> words
+                Then result is <expected>
+
+                Examples:
+                  | count | expected |
+                  | 5     | 5        |
+                  | 11    | 10       |
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        assertEquals(2, feature.scenarios.size)
+        assertEquals("counts [count=5, expected=5]", feature.scenarios[0].name)
+        assertEquals("5 words", feature.scenarios[0].steps[0].text)
+        assertEquals("result is 10", feature.scenarios[1].steps[1].text)
+    }
+
+    @Test
     fun `outline scenario name includes row values`() {
         val input = """
             Feature: F
