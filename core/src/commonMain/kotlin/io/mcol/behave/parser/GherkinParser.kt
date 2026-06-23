@@ -144,6 +144,8 @@ object GherkinParser {
             "Then" to Keyword.THEN,
             "And" to Keyword.AND,
             "But" to Keyword.BUT,
+            // The `*` bullet is a generic step keyword; matching is by text so AND is a neutral label.
+            "*" to Keyword.AND,
         )
         for ((prefix, kw) in prefixes) {
             if (line.startsWith("$prefix ")) return kw to line.removePrefix("$prefix ").trim()

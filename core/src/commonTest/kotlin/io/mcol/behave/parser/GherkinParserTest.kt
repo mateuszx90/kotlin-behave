@@ -181,6 +181,22 @@ class GherkinParserTest {
     }
 
     @Test
+    fun `asterisk is a valid step keyword`() {
+        val input = """
+            Feature: F
+
+              Scenario: S
+                Given a precondition
+                * another precondition
+                When I act
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        assertEquals(1, feature.scenarios.size)
+        assertEquals(3, feature.scenarios[0].steps.size)
+        assertEquals("another precondition", feature.scenarios[0].steps[1].text)
+    }
+
+    @Test
     fun `Example is a synonym for Scenario`() {
         val input = """
             Feature: F

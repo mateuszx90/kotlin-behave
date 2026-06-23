@@ -23,6 +23,26 @@ class FeatureFileParserTest {
     }
 
     @Test
+    fun `asterisk step keyword resolves to the previous real keyword`() {
+        val feature =
+            """
+            Feature: F
+              Scenario: S
+                Given a precondition
+                * another precondition
+                When I act
+                * and also act
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertFalse(parsed.hasErrors)
+        assertEquals(4, parsed.steps.size)
+        assertEquals("Given", parsed.steps[1].keyword)
+        assertEquals("another precondition", parsed.steps[1].text)
+        assertEquals("When", parsed.steps[3].keyword)
+        assertEquals("and also act", parsed.steps[3].text)
+    }
+
+    @Test
     fun `Example is a synonym for Scenario`() {
         val feature =
             """

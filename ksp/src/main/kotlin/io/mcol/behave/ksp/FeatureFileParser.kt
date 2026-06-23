@@ -37,14 +37,14 @@ internal object FeatureFileParser {
         val hasErrors: Boolean get() = errors.isNotEmpty()
     }
 
-    private val keywords = listOf("Given", "When", "Then", "And", "But")
+    private val keywords = listOf("Given", "When", "Then", "And", "But", "*")
 
     /**
-     * Resolve And/But to the previous Given/When/Then keyword.
-     * In Gherkin, And/But are aliases for the last real keyword.
+     * Resolve And/But/`*` to the previous Given/When/Then keyword.
+     * In Gherkin, And/But and the `*` bullet are aliases for the last real keyword.
      */
     private fun resolveKeyword(keyword: String, lastRealKeyword: String): String = when (keyword) {
-        "And", "But" -> lastRealKeyword.ifEmpty { keyword }
+        "And", "But", "*" -> lastRealKeyword.ifEmpty { keyword }
         else -> keyword
     }
 
