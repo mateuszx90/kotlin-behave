@@ -12,6 +12,42 @@ object GherkinParser {
 
     private fun isExamplesStart(l: String) = l.startsWith("Examples:") || l.startsWith("Scenarios:")
 
+    /**
+     * Split a `| a | b |` row into trimmed cells, preserving empties and honouring cell escapes:
+     * `\|` -> `|`, `\\` -> `\`, `\n` -> newline. Border pipes are stripped first.
+     */
+    internal fun splitTableRow(line: String): List<String> {
+        val inner = line.trim().removePrefix("|").removeSuffix("|")
+        val cells = mutableListOf<String>()
+        val sb = StringBuilder()
+        var i = 0
+        while (i < inner.length) {
+            val c = inner[i]
+            when {
+                c == '\\' && i + 1 < inner.length -> {
+                    when (inner[i + 1]) {
+                        '|' -> sb.append('|')
+                        '\\' -> sb.append('\\')
+                        'n' -> sb.append('\n')
+                        else -> sb.append(c).append(inner[i + 1])
+                    }
+                    i += 2
+                }
+                c == '|' -> {
+                    cells.add(sb.toString().trim())
+                    sb.clear()
+                    i++
+                }
+                else -> {
+                    sb.append(c)
+                    i++
+                }
+            }
+        }
+        cells.add(sb.toString().trim())
+        return cells
+    }
+
     fun parse(input: String): Feature {
         val lines = input.lines()
             .map { it.trim() }
@@ -67,8 +103,7 @@ object GherkinParser {
             inExamples = false
         }
 
-        fun parseTableRow(line: String): List<String> = line.trim().removePrefix("|").removeSuffix("|")
-            .split("|").map { it.trim() }
+        fun parseTableRow(line: String): List<String> = splitTableRow(line)
 
         for (line in lines) {
             when {

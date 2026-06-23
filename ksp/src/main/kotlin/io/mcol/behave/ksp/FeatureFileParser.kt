@@ -297,10 +297,36 @@ internal object FeatureFileParser {
 
     // Split a `| a | b |` row into cells. The leading/trailing border pipes are stripped first, so
     // empty cells (`| a |  | c |`) are PRESERVED — dropping them would misalign columns with headers.
-    private fun parseTableRow(line: String): List<String> = line
-        .trim()
-        .removePrefix("|")
-        .removeSuffix("|")
-        .split("|")
-        .map { it.trim() }
+    // Cells may escape the delimiter and special chars: `\|` -> `|`, `\\` -> `\`, `\n` -> newline.
+    private fun parseTableRow(line: String): List<String> {
+        val inner = line.trim().removePrefix("|").removeSuffix("|")
+        val cells = mutableListOf<String>()
+        val sb = StringBuilder()
+        var i = 0
+        while (i < inner.length) {
+            val c = inner[i]
+            when {
+                c == '\\' && i + 1 < inner.length -> {
+                    when (inner[i + 1]) {
+                        '|' -> sb.append('|')
+                        '\\' -> sb.append('\\')
+                        'n' -> sb.append('\n')
+                        else -> sb.append(c).append(inner[i + 1])
+                    }
+                    i += 2
+                }
+                c == '|' -> {
+                    cells.add(sb.toString().trim())
+                    sb.clear()
+                    i++
+                }
+                else -> {
+                    sb.append(c)
+                    i++
+                }
+            }
+        }
+        cells.add(sb.toString().trim())
+        return cells
+    }
 }

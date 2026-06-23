@@ -181,6 +181,23 @@ class GherkinParserTest {
     }
 
     @Test
+    fun `table cells honour escapes for pipe backslash and newline`() {
+        val input = """
+            Feature: F
+
+              Scenario: S
+                Given the following items:
+                  | name | note  | multi    |
+                  | a\|b | x\\y  | l1\nl2   |
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        val row = feature.scenarios[0].steps[0].dataTable!!.rows[0]
+        assertEquals("a|b", row["name"])
+        assertEquals("x\\y", row["note"])
+        assertEquals("l1\nl2", row["multi"])
+    }
+
+    @Test
     fun `empty data table cells are preserved`() {
         val input = """
             Feature: F
