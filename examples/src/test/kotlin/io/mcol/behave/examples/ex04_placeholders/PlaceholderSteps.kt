@@ -41,8 +41,8 @@ class PlaceholderSteps : PlaceholderStepsSpec {
         check(form.isNotEmpty()) { "Form is empty" }
     }
 
-    // <flag> from Scenario Outline → {word} → String
-    override suspend fun iSetThePremiumFlagTo(flag: String) {
-        form["premium"] = flag.toBooleanStrict()
+    // <flag> from Scenario Outline Examples with boolean values → Boolean
+    override suspend fun iSetThePremiumFlagTo(flag: Boolean) {
+        form["premium"] = flag
     }
 }

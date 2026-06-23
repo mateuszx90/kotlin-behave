@@ -75,9 +75,9 @@ class MultiOutlineSteps : MultiOutlineStepsSpec {
         }
     }
 
-    // <status> is unquoted → {word} → String (not Int, even though values are numeric)
-    override suspend fun theResponseStatusIs(status: String) {
-        assertEquals(status, responseStatus)
+    // <status> from Examples with numeric values → Int (inferred from 200, 201, etc.)
+    override suspend fun theResponseStatusIs(status: Int) {
+        assertEquals(status.toString(), responseStatus)
     }
 
     override suspend fun theResponseContains(body: String) {
