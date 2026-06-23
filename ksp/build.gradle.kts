@@ -7,7 +7,7 @@ group = "io.mcol.kotlin-behave"
 version = "0.1.0"
 
 dependencies {
-    implementation(project(":gherkin-shared"))
+    implementation(project(":gherkin"))
     implementation(project(":annotations"))
     implementation(project(":core"))
     implementation(libs.ksp.api)

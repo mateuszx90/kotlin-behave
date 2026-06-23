@@ -21,6 +21,9 @@ kotlin {
     linuxX64()
 
     sourceSets {
+        commonMain.dependencies {
+            implementation(project(":gherkin"))
+        }
         commonTest.dependencies {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)

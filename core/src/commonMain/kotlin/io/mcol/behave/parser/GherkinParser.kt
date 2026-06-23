@@ -37,42 +37,6 @@ object GherkinParser {
         return content.joinToString("\n") to next
     }
 
-    /**
-     * Split a `| a | b |` row into trimmed cells, preserving empties and honouring cell escapes:
-     * `\|` -> `|`, `\\` -> `\`, `\n` -> newline. Border pipes are stripped first.
-     */
-    internal fun splitTableRow(line: String): List<String> {
-        val inner = line.trim().removePrefix("|").removeSuffix("|")
-        val cells = mutableListOf<String>()
-        val sb = StringBuilder()
-        var i = 0
-        while (i < inner.length) {
-            val c = inner[i]
-            when {
-                c == '\\' && i + 1 < inner.length -> {
-                    when (inner[i + 1]) {
-                        '|' -> sb.append('|')
-                        '\\' -> sb.append('\\')
-                        'n' -> sb.append('\n')
-                        else -> sb.append(c).append(inner[i + 1])
-                    }
-                    i += 2
-                }
-                c == '|' -> {
-                    cells.add(sb.toString().trim())
-                    sb.clear()
-                    i++
-                }
-                else -> {
-                    sb.append(c)
-                    i++
-                }
-            }
-        }
-        cells.add(sb.toString().trim())
-        return cells
-    }
-
     fun parse(input: String): Feature {
         // Keep raw lines: comments/blank lines are skipped inline so they are NOT stripped from
         // inside a Doc String (where `#` and blank lines are literal content).
@@ -139,7 +103,7 @@ object GherkinParser {
             inExamples = false
         }
 
-        fun parseTableRow(line: String): List<String> = splitTableRow(line)
+        fun parseTableRow(line: String): List<String> = io.mcol.behave.gherkin.GherkinTable.splitRow(line)
 
         var li = 0
         while (li < rawLines.size) {

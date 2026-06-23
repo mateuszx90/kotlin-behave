@@ -19,7 +19,7 @@ package io.mcol.behave.gherkin
  */
 public object MethodNameGenerator {
     private val QUOTED_LITERAL_REGEX = Regex("\"[^\"]*\"")
-    private val PLACEHOLDER_REGEX = Regex("\\{[^}]+}")
+    private val PLACEHOLDER_REGEX = Regex("\\{[^}]+\\}")
     private val VARIABLE_REGEX = Regex("<[^>]+>")
     private val DOUBLE_LITERAL_REGEX = Regex("""(?<!\S)-?\d+\.\d+(?!\S)""")
     private val INT_LITERAL_REGEX = Regex("""(?<!\S)-?\d+(?!\S)""")
@@ -73,7 +73,7 @@ public object MethodNameGenerator {
         val indices = mutableMapOf<String, Int>()
         return raw.map { name ->
             if (counts[name]!! > 1) {
-                val idx = indices.getOrDefault(name, 0)
+                val idx = indices[name] ?: 0
                 indices[name] = idx + 1
                 "$name$idx"
             } else {
