@@ -7,8 +7,12 @@ package io.mcol.behave.gherkin
 public object GherkinTable {
     /**
      * Split a `| a | b |` row into trimmed cells. Border pipes are stripped first, so empty cells
-     * (`| a |  | c |`) are PRESERVED — dropping them would misalign columns with the header. Cell
-     * content may escape special characters: `\|` -> `|`, `\\` -> `\`, `\n` -> newline.
+     * (`| a |  | c |`) are PRESERVED — dropping them would misalign columns with the header.
+     *
+     * Only the delimiter and the escape char itself are unescaped: `\|` -> `|`, `\\` -> `\`.
+     * `\n` is left LITERAL (the two characters), because Examples values are substituted into step
+     * text verbatim and steps commonly convert `\n` to a newline themselves; turning it into a real
+     * newline here would make the value whitespace and break `{word}`/`{string}` matching.
      */
     public fun splitRow(line: String): List<String> {
         val inner = line.trim().removePrefix("|").removeSuffix("|")
@@ -22,7 +26,6 @@ public object GherkinTable {
                     when (inner[i + 1]) {
                         '|' -> sb.append('|')
                         '\\' -> sb.append('\\')
-                        'n' -> sb.append('\n')
                         else -> sb.append(c).append(inner[i + 1])
                     }
                     i += 2
