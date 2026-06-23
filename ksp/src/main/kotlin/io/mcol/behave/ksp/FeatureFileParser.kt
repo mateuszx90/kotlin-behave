@@ -295,11 +295,12 @@ internal object FeatureFileParser {
         null
     }
 
+    // Split a `| a | b |` row into cells. The leading/trailing border pipes are stripped first, so
+    // empty cells (`| a |  | c |`) are PRESERVED — dropping them would misalign columns with headers.
     private fun parseTableRow(line: String): List<String> = line
         .trim()
         .removePrefix("|")
         .removeSuffix("|")
         .split("|")
         .map { it.trim() }
-        .filter { it.isNotEmpty() }
 }

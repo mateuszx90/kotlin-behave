@@ -23,6 +23,25 @@ class FeatureFileParserTest {
     }
 
     @Test
+    fun `empty Examples cells are preserved when expanding`() {
+        val feature =
+            """
+            Feature: F
+              Scenario Outline: S
+                Given a=<a> b=<b>
+                Examples:
+                  | a | b |
+                  | x |   |
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertFalse(parsed.hasErrors)
+        // With the empty cell preserved, <b> is substituted with "" -> "a=x b=".
+        // (The old behaviour dropped the empty cell, leaving "<b>" unsubstituted.)
+        assertTrue(parsed.allStepInstances.any { it.text == "a=x b=" })
+        assertFalse(parsed.allStepInstances.any { it.text.contains("<b>") })
+    }
+
+    @Test
     fun `asterisk step keyword resolves to the previous real keyword`() {
         val feature =
             """

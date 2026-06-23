@@ -181,6 +181,23 @@ class GherkinParserTest {
     }
 
     @Test
+    fun `empty data table cells are preserved`() {
+        val input = """
+            Feature: F
+
+              Scenario: S
+                Given the following items:
+                  | name | qty |
+                  | a    |     |
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        val rows = feature.scenarios[0].steps[0].dataTable!!.rows
+        assertEquals(1, rows.size)
+        assertEquals("a", rows[0]["name"])
+        assertEquals("", rows[0]["qty"])
+    }
+
+    @Test
     fun `asterisk is a valid step keyword`() {
         val input = """
             Feature: F
