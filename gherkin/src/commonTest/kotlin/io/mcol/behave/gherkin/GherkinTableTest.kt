@@ -15,7 +15,7 @@ class GherkinTableTest {
     }
 
     @Test
-    fun `honours escapes for pipe backslash and newline`() {
-        assertEquals(listOf("a|b", "x\\y", "l1\nl2"), GherkinTable.splitRow("""| a\|b | x\\y | l1\nl2 |"""))
+    fun `unescapes pipe and backslash but leaves backslash-n literal`() {
+        assertEquals(listOf("a|b", "x\\y", "l1\\nl2"), GherkinTable.splitRow("""| a\|b | x\\y | l1\nl2 |"""))
     }
 }

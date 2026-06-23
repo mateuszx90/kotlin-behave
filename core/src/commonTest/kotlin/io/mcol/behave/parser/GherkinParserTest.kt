@@ -259,7 +259,7 @@ class GherkinParserTest {
     }
 
     @Test
-    fun `table cells honour escapes for pipe backslash and newline`() {
+    fun `table cells unescape pipe and backslash but keep backslash-n literal`() {
         val input = """
             Feature: F
 
@@ -272,7 +272,7 @@ class GherkinParserTest {
         val row = feature.scenarios[0].steps[0].dataTable!!.rows[0]
         assertEquals("a|b", row["name"])
         assertEquals("x\\y", row["note"])
-        assertEquals("l1\nl2", row["multi"])
+        assertEquals("l1\\nl2", row["multi"])
     }
 
     @Test
