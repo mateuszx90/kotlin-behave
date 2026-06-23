@@ -112,6 +112,16 @@ Reguła projektu: **każdy fix = feature file reprodukujący problem** (`example
 ### Kolejność rekomendowana
 `F1, F2` (bugi) → `F3, F4` (taniochy) → `F5` → `F6` (Doc Strings) → `F7` → `F8`.
 
+### Stan realizacji F1–F8
+- ✅ **F1** puste komórki (KSP) — naprawione
+- ✅ **F2** `Scenario Template:` w runtime
+- ✅ **F3** `*` keyword (oba parsery)
+- ✅ **F4** `Example:` / `Scenarios:` synonimy (oba parsery)
+- ✅ **F5** escapowanie `\| \\ \n` w komórkach (oba parsery)
+- ✅ **F6** Doc Strings (`"""` / ` ``` `) — model `Step.docString`, oba parsery, codegen (parametr `docString: String`), runtime threading, przykład `ex21`
+- ⏳ **F7** `Rule:` (Gherkin 6+)
+- ⏳ **F8** i18n / `# language:`
+
 ---
 
 ## 3. Plugin IntelliJ — czy używa biblioteki?

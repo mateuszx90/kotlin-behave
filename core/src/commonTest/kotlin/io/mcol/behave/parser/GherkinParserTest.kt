@@ -181,6 +181,46 @@ class GherkinParserTest {
     }
 
     @Test
+    fun `doc string is attached to the step with content preserved`() {
+        val input = """
+            Feature: F
+
+              Scenario: S
+                Given a payload:
+                  ```
+                  line1
+                  # still content
+
+                  line3
+                  ```
+                Then it is sent
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        val steps = feature.scenarios[0].steps
+        assertEquals(2, steps.size)
+        assertEquals("a payload:", steps[0].text)
+        assertEquals("line1\n# still content\n\nline3", steps[0].docString)
+        assertEquals(null, steps[1].docString)
+    }
+
+    @Test
+    fun `doc string de-indents relative to the opening fence`() {
+        val input = """
+            Feature: F
+
+              Scenario: S
+                Given json:
+                  ```
+                  {
+                    "a": 1
+                  }
+                  ```
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        assertEquals("{\n  \"a\": 1\n}", feature.scenarios[0].steps[0].docString)
+    }
+
+    @Test
     fun `table cells honour escapes for pipe backslash and newline`() {
         val input = """
             Feature: F

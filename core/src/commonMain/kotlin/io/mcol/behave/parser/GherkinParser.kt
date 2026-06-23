@@ -13,6 +13,29 @@ object GherkinParser {
     private fun isExamplesStart(l: String) = l.startsWith("Examples:") || l.startsWith("Scenarios:")
 
     /**
+     * Read a Doc String that opens at [openIndex] (a line whose trimmed form starts with `"""` or
+     * ` ``` `). Returns the de-indented content (lines joined by `\n`, comments/blank lines kept
+     * verbatim) and the index of the line AFTER the closing fence. The opening fence's column sets
+     * how much leading whitespace is stripped from each content line (Gherkin indentation rule).
+     */
+    internal fun extractDocString(rawLines: List<String>, openIndex: Int): Pair<String, Int> {
+        val openRaw = rawLines[openIndex]
+        val fence = if (openRaw.trim().startsWith("```")) "```" else "\"\"\""
+        val indent = openRaw.indexOf(fence).coerceAtLeast(0)
+        val content = mutableListOf<String>()
+        var i = openIndex + 1
+        while (i < rawLines.size && rawLines[i].trim() != fence) {
+            val l = rawLines[i]
+            var k = 0
+            while (k < indent && k < l.length && l[k].isWhitespace()) k++
+            content.add(l.substring(k))
+            i++
+        }
+        val next = if (i < rawLines.size) i + 1 else i // skip closing fence when present
+        return content.joinToString("\n") to next
+    }
+
+    /**
      * Split a `| a | b |` row into trimmed cells, preserving empties and honouring cell escapes:
      * `\|` -> `|`, `\\` -> `\`, `\n` -> newline. Border pipes are stripped first.
      */
@@ -49,9 +72,9 @@ object GherkinParser {
     }
 
     fun parse(input: String): Feature {
-        val lines = input.lines()
-            .map { it.trim() }
-            .filterNot { it.startsWith("#") || it.isBlank() }
+        // Keep raw lines: comments/blank lines are skipped inline so they are NOT stripped from
+        // inside a Doc String (where `#` and blank lines are literal content).
+        val rawLines = input.lines()
 
         var featureName = ""
         var featureTags = emptySet<String>()
@@ -105,7 +128,20 @@ object GherkinParser {
 
         fun parseTableRow(line: String): List<String> = splitTableRow(line)
 
-        for (line in lines) {
+        var li = 0
+        while (li < rawLines.size) {
+            val line = rawLines[li].trim()
+            // A Doc String ("""... or ```...) attaches its content to the preceding step.
+            if (pendingStep != null && (line.startsWith("\"\"\"") || line.startsWith("```"))) {
+                val (doc, next) = extractDocString(rawLines, li)
+                pendingStep = pendingStep?.copy(docString = doc)
+                li = next
+                continue
+            }
+            if (line.isEmpty() || line.startsWith("#")) {
+                li++
+                continue
+            }
             when {
                 line.startsWith("@") -> pendingTags = parseTags(line)
                 line.startsWith("Feature:") -> {
@@ -166,6 +202,7 @@ object GherkinParser {
                     }
                 }
             }
+            li++
         }
         flushScenario()
 

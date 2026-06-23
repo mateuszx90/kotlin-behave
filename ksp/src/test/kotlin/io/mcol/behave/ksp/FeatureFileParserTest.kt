@@ -23,6 +23,26 @@ class FeatureFileParserTest {
     }
 
     @Test
+    fun `doc string is flagged on the step and its content is skipped`() {
+        val feature =
+            """
+            Feature: F
+              Scenario: S
+                Given a payload:
+                  ```
+                  Given this looks like a step but is doc content
+                  ```
+                Then it is sent
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertFalse(parsed.hasErrors)
+        // Only the two real steps are parsed; the doc content line is not mistaken for a step.
+        assertEquals(2, parsed.steps.size)
+        assertTrue(parsed.steps.single { it.text == "a payload:" }.hasDocString)
+        assertFalse(parsed.steps.single { it.text == "it is sent" }.hasDocString)
+    }
+
+    @Test
     fun `escaped pipe in an Examples cell is unescaped when expanding`() {
         val feature =
             """

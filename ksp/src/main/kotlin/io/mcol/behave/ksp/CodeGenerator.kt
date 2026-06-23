@@ -31,6 +31,7 @@ internal object CodeGenerator {
         val castParams: Map<Int, String> = emptyMap(), // param index → original narrow type (e.g. "Int")
         val typeConversions: Map<Int, String> = emptyMap(), // param index → fully qualified type name (e.g. "com.example.Item")
         val typeConverters: Map<Int, ConverterInfo> = emptyMap(), // param index → converter function and return type
+        val hasDocString: Boolean = false, // true if the step carries a """/``` doc string (extra String param)
     )
 
     data class GeneratedRowClass(
@@ -95,28 +96,26 @@ internal object CodeGenerator {
         for (step in iface.steps) {
             if (step.methodName in iface.inheritedMethodNames) continue
             appendLine("    // ${step.originalKeyword} ${step.originalText}")
-            if (step.params.isEmpty()) {
-                appendLine("    suspend fun ${step.methodName}()")
-            } else {
-                // Skip parameters consumed by multi-param converters
-                val skippedIndices = mutableSetOf<Int>()
-                for ((idx, converter) in step.typeConverters) {
-                    if (converter.paramCount > 1) {
-                        for (i in 1 until converter.paramCount) {
-                            skippedIndices.add(idx + i)
-                        }
+            // Skip parameters consumed by multi-param converters
+            val skippedIndices = mutableSetOf<Int>()
+            for ((idx, converter) in step.typeConverters) {
+                if (converter.paramCount > 1) {
+                    for (i in 1 until converter.paramCount) {
+                        skippedIndices.add(idx + i)
                     }
                 }
-                val paramList = step.params.mapIndexed { idx, param ->
-                    if (idx in skippedIndices) {
-                        null
-                    } else {
-                        val paramType = step.typeConversions[idx] ?: step.typeConverters[idx]?.returnType ?: param.typeName
-                        "${param.name}: $paramType"
-                    }
-                }.filterNotNull().joinToString(", ")
-                appendLine("    suspend fun ${step.methodName}($paramList)")
             }
+            val paramList = step.params.mapIndexedNotNull { idx, param ->
+                if (idx in skippedIndices) {
+                    null
+                } else {
+                    val paramType = step.typeConversions[idx] ?: step.typeConverters[idx]?.returnType ?: param.typeName
+                    "${param.name}: $paramType"
+                }
+            }
+            // A doc string is exposed as a trailing String parameter.
+            val allParams = if (step.hasDocString) paramList + "docString: String" else paramList
+            appendLine("    suspend fun ${step.methodName}(${allParams.joinToString(", ")})")
             appendLine()
         }
 
@@ -130,8 +129,10 @@ internal object CodeGenerator {
             val keyword = step.originalKeyword
             val widenedExpr = widenStepExpression(step.stepExpression, step.castParams, step.params)
             val expr = widenedExpr.replace("\"", "\\\"")
-            if (step.params.isEmpty()) {
+            if (step.params.isEmpty() && !step.hasDocString) {
                 appendLine("                $keyword(\"$expr\") { ctx.${step.methodName}() }")
+            } else if (step.params.isEmpty()) {
+                appendLine("                $keyword(\"$expr\") { params -> ctx.${step.methodName}(params.docString ?: \"\") }")
             } else {
                 renderStepCall(step, iface.rowClasses, expr)
             }
@@ -182,6 +183,8 @@ internal object CodeGenerator {
         expr: String,
     ) {
         val keyword = step.originalKeyword
+        // A doc string becomes a trailing `params.docString ?: ""` argument on every call site.
+        val docArg = if (step.hasDocString) ", params.docString ?: \"\"" else ""
 
         // Check if this step has a DataTable (List<...> param)
         val listParam = step.params.firstOrNull { it.typeName.startsWith("List<") }
@@ -217,7 +220,7 @@ internal object CodeGenerator {
                 } else {
                     append("rows")
                 }
-                appendLine(")")
+                appendLine("$docArg)")
             } else {
                 // List<T> with no field info — fall back to raw DataTable rows
                 append("                    ctx.${step.methodName}(")
@@ -225,7 +228,7 @@ internal object CodeGenerator {
                     append(inlineParams.mapIndexed { i, p -> "params[$i] as ${p.typeName}" }.joinToString(", "))
                     append(", ")
                 }
-                appendLine("params.dataTable!!.rows as ${listParam.typeName})")
+                appendLine("params.dataTable!!.rows as ${listParam.typeName}$docArg)")
             }
             appendLine("                }")
         } else {
@@ -282,7 +285,12 @@ internal object CodeGenerator {
                             }
                         }
                     }.filterNotNull().joinToString(", ")
-            appendLine("                    ctx.${step.methodName}($args)")
+            val finalArgs = when {
+                !step.hasDocString -> args
+                args.isEmpty() -> "params.docString ?: \"\""
+                else -> "$args$docArg"
+            }
+            appendLine("                    ctx.${step.methodName}($finalArgs)")
             appendLine("                }")
         }
     }

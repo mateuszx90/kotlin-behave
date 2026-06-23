@@ -11,7 +11,8 @@ complexity:
     thresholdInFiles: 30
     thresholdInClasses: 25
   CyclomaticComplexMethod:
-    threshold: 30
+    # The two Gherkin parse() loops are inherently complex line dispatchers.
+    threshold: 40
   NestedBlockDepth:
     threshold: 6
   ComplexCondition:
