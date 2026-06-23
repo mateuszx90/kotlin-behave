@@ -42,6 +42,7 @@ private data class StepBuildContext(
     val classDecl: KSClassDeclaration,
     val typeConverters: Map<String, TypeConverterInfo>,
     val resolver: Resolver,
+    val exampleColumnTypes: Map<String, String> = emptyMap(), // inferred types from Examples tables
 )
 
 class BehaveProcessor(
@@ -390,6 +391,7 @@ class BehaveProcessor(
             classDecl = classDecl,
             typeConverters = typeConverters,
             resolver = resolver,
+            exampleColumnTypes = parsed.exampleColumnTypes,
         )
         val generatedSteps = parsed.steps.mapIndexed { i, step ->
             buildGeneratedStep(step, methodNames[i], buildContext)
@@ -445,7 +447,7 @@ class BehaveProcessor(
         methodName: String,
         ctx: StepBuildContext,
     ): io.mcol.behave.ksp.CodeGenerator.GeneratedStep {
-        val params = resolveParams(step, ctx.typeMappings, ctx.classDecl)
+        val params = resolveParams(step, ctx.typeMappings, ctx.classDecl, ctx.exampleColumnTypes)
         var rawExpr = io.mcol.behave.ksp.CodeGenerator.escapeStepExpression(
             io.mcol.behave.ksp.CodeGenerator.replaceOutlineVariables(
                 io.mcol.behave.ksp.CodeGenerator.replaceNumberLiterals(
@@ -607,9 +609,10 @@ class BehaveProcessor(
         step: FeatureFileParser.ParsedStep,
         typeMappings: List<io.mcol.behave.ksp.CodeGenerator.TypeMapping>,
         classDecl: KSClassDeclaration,
+        exampleColumnTypes: Map<String, String> = emptyMap(),
     ): List<io.mcol.behave.ksp.CodeGenerator.StepParam> {
         // Always extract inline params (quoted literals, {placeholders}, <variables>)
-        val inlineParams = resolveInlineParams(step.text, typeMappings)
+        val inlineParams = resolveInlineParams(step.text, typeMappings, exampleColumnTypes)
         if (!step.hasDataTable) return inlineParams
         // DataTable steps: prepend any inline string params before the rows param
         return inlineParams + resolveDataTableParams(step, typeMappings)
@@ -618,6 +621,7 @@ class BehaveProcessor(
     private fun resolveInlineParams(
         text: String,
         typeMappings: List<io.mcol.behave.ksp.CodeGenerator.TypeMapping>,
+        exampleColumnTypes: Map<String, String> = emptyMap(),
     ): List<io.mcol.behave.ksp.CodeGenerator.StepParam> {
         // Find quoted string ranges first so we can exclude <variable> found inside "..."
         val quotedRanges = Regex("\"[^\"]*\"").findAll(text).map { it.range }.toList()
@@ -688,7 +692,11 @@ class BehaveProcessor(
                     }
                 }
                 Kind.QUOTED -> "String" to tok.name // tok.name is variable name or "string"
-                Kind.VARIABLE -> "String" to tok.name
+                Kind.VARIABLE -> {
+                    // Use inferred type from Examples table if available, otherwise default to String
+                    val inferredType = exampleColumnTypes[tok.name] ?: "String"
+                    inferredType to tok.name
+                }
                 Kind.NUMBER -> {
                     val kotlinType = io.mcol.behave.ksp.CodeGenerator.builtinTypes[tok.name] ?: "Int"
                     kotlinType to tok.name
