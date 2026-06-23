@@ -120,7 +120,7 @@ Reguła projektu: **każdy fix = feature file reprodukujący problem** (`example
 - ✅ **F5** escapowanie `\| \\ \n` w komórkach (oba parsery)
 - ✅ **F6** Doc Strings (`"""` / ` ``` `) — model `Step.docString`, oba parsery, codegen (parametr `docString: String`), runtime threading, przykład `ex21`
 - ✅ **F7** `Rule:` (Gherkin 6+) — oba parsery; runtime składa Rule-Background na scenariusze reguły (kolejność: feature-bg → rule-bg → kroki); KSP parsuje kroki pod regułą
-- ⏭️ **F8** i18n / `# language:` — **świadomie pominięte** (najmniejszy zwrot dla projektu anglojęzycznego). Do zrobienia w przyszłości: `# language:` + tablice dialektów (najlepiej w KMP-owym `:gherkin-shared`, by dzielić je między runtime, KSP i plugin).
+- ⏭️ **F8** i18n / `# language:` — **świadomie pominięte** (najmniejszy zwrot dla projektu anglojęzycznego). Do zrobienia w przyszłości: `# language:` + tablice dialektów (najlepiej w KMP-owym `:gherkin`, by dzielić je między runtime, KSP i plugin).
 
 ---
 
@@ -173,15 +173,15 @@ Następnie:
 ## 4. Stan wdrożenia współdzielenia
 
 ### ✅ Faza 1 — `MethodNameGenerator` (zrobione)
-- Nowy moduł **`:gherkin-shared`** (`kotlin-behave/gherkin-shared/`, czysty Kotlin/JVM, `behave.publish`, coords `io.mcol.kotlin-behave:gherkin-shared:0.1.0`).
-- `MethodNameGenerator` przeniesiony tam jako `public` (z `generate(keyword,text)`, overloadem `generate(keywordAndText)` i `resolveCollisions`). Test przeniesiony do `:gherkin-shared`.
-- `:ksp` zależy od `:gherkin-shared` (usunięto kopię z `ksp/`).
-- **Plugin** zależy od `:gherkin-shared` (`implementation`, composite build), usunięto `idea/MethodNameGenerator.kt`, wszystkie 8 konsumentów + testy przepięte na `io.mcol.behave.gherkin.MethodNameGenerator`.
+- Nowy moduł **`:gherkin`** (`kotlin-behave/gherkin/`, czysty Kotlin/JVM, `behave.publish`, coords `io.mcol.kotlin-behave:gherkin:0.1.0`).
+- `MethodNameGenerator` przeniesiony tam jako `public` (z `generate(keyword,text)`, overloadem `generate(keywordAndText)` i `resolveCollisions`). Test przeniesiony do `:gherkin`.
+- `:ksp` zależy od `:gherkin` (usunięto kopię z `ksp/`).
+- **Plugin** zależy od `:gherkin` (`implementation`, composite build), usunięto `idea/MethodNameGenerator.kt`, wszystkie 8 konsumentów + testy przepięte na `io.mcol.behave.gherkin.MethodNameGenerator`.
 - Build zielony: `kotlin-behave` (test+detekt+spotless) oraz plugin (`compileKotlin`/`compileTestKotlin`).
 - **Efekt:** IDE i KSP liczą nazwy metod tym samym algorytmem (koniec rozjazdu np. przy literałach liczbowych).
 
-### ✅ Faza 2a — inferencja typów wyniesiona do `:gherkin-shared` (zrobione)
-- Nowy `GherkinTypes` w `:gherkin-shared`: `inferVariableTypes(templateText, instanceTexts)` + mapy `placeholderToKotlin` / `kotlinToPlaceholder`.
+### ✅ Faza 2a — inferencja typów wyniesiona do `:gherkin` (zrobione)
+- Nowy `GherkinTypes` w `:gherkin`: `inferVariableTypes(templateText, instanceTexts)` + mapy `placeholderToKotlin` / `kotlinToPlaceholder`.
 - `BehaveProcessor.inferVariableTypes` deleguje do `GherkinTypes`; `CodeGenerator.builtinTypes` i `replaceOutlineVariablesTyped` korzystają z map współdzielonych (jedno źródło prawdy).
 - Dodano **bezpośrednie testy jednostkowe** inferencji (Int/Long/Double/Boolean, mixed→String, multi-kolumna, unifikacja tabela+standalone, quoted) — wcześniej pokryte tylko pośrednio.
 - Build zielony (kotlin-behave `build` z examples ex20 + delegacją).
@@ -189,13 +189,19 @@ Następnie:
 
 ### ✅ Faza 2b — inlay typów parametrów w pluginie (zrobione)
 - `GherkinParamTypeInlayProvider` dla `<outline var>` nie pokazuje już na sztywno `: String` — liczy typ z kolumny `Examples` przez współdzielony `GherkinTypes.inferType` (ta sama logika co KSP): `: Int` / `: Double` / `: Boolean` / `: Long`, a `: String` gdy kolumna jest tekstowa/mieszana.
-- Dodano `GherkinTypes.inferType(values)` w `:gherkin-shared` (decyzja o typie w bibliotece). Po stronie pluginu jedynie trywialny, czysty skan kolumny (`exampleColumnValues`) ograniczony stabilnym `GherkinScenarioScanner` — bez zależności od WIP.
+- Dodano `GherkinTypes.inferType(values)` w `:gherkin` (decyzja o typie w bibliotece). Po stronie pluginu jedynie trywialny, czysty skan kolumny (`exampleColumnValues`) ograniczony stabilnym `GherkinScenarioScanner` — bez zależności od WIP.
 - Testy jednostkowe bez IDE: 7 przypadków po stronie pluginu + testy `inferType` w bibliotece.
+
+### ✅ Faza 2c — `:gherkin` przeniesione na KMP (częściowo zrobione)
+- Moduł `:gherkin-shared` → **`:gherkin`**, z `kotlin.jvm` na **`kotlin.multiplatform`** (targety jak `:core`: jvm, js, iosX64/Arm64/SimulatorArm64, macosX64/Arm64, linuxX64). Źródła w `commonMain`/`commonTest`.
+- Teraz **wszyscy trzej** konsumenci dzielą jedno źródło: `:core` (runtime) dodaje `commonMain` zależność na `:gherkin`, `:ksp` i plugin korzystają z wariantu `jvm`.
+- **Tokenizer komórek z F5 zdedupowany:** wspólny `GherkinTable.splitRow` w `:gherkin`; runtime i KSP delegują (koniec duplikacji). Testy multiplatform.
+- Drobiazgi KMP/JS naprawione: `getOrDefault` (JVM-only) → `?:`; escape `\\}` w regexie (Kotlin/JS kompiluje z flagą `u`).
 
 ### ⏳ Faza 2c — pozostałe (do zrobienia)
 - **`resolveCollisions` w pluginie:** funkcja dostępna, ale konsumenci wołają samo `generate()` per-krok. Dla kolidujących kroków liczyć nazwy z `resolveCollisions` na całym feature.
-- **`FeatureFileParser` / normalizacja / tokenizer komórek** — wynieść warstwę semantyczną do `:gherkin-shared`; parser PSI w pluginie zostaje, ale deleguje (pozwoli też zastąpić lokalny skan `exampleColumnValues`).
+- **`FeatureFileParser` / normalizacja** — wynieść do `:gherkin` (parser PSI w pluginie zostaje, ale deleguje; pozwoli zastąpić lokalny skan `exampleColumnValues`).
 - **Złota nić testowa:** wspólny zestaw przypadków uruchamiany po obu stronach.
 
 ### Zasada na przyszłość
-Każdy nowy element obsługi Gherkina (F1–F8 powyżej) implementujemy **w `:gherkin-shared`**, nie ręcznie w pluginie — wtedy automatycznie trafia do KSP i IDE.
+Każdy nowy element obsługi Gherkina (F1–F8 powyżej) implementujemy **w `:gherkin`**, nie ręcznie w pluginie — wtedy automatycznie trafia do KSP i IDE.
