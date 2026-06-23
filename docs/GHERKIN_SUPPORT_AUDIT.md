@@ -177,10 +177,14 @@ Następnie:
 - Build zielony (kotlin-behave `build` z examples ex20 + delegacją).
 - `GherkinTypes` jest już na classpath pluginu (zależność z Fazy 1) — gotowe do użycia.
 
-### ⏳ Faza 2b — wpięcie po stronie pluginu (do zrobienia)
-- **Inlay typów parametrów** (`GherkinParamTypeInlayProvider`): dziś `OUTLINE_VAR -> ": String"` na sztywno. Powinien wołać `GherkinTypes.inferVariableTypes` i pokazywać `Int`/`Boolean`/… Wymaga przejścia PSI do tabeli `Examples` danego outline — a skanery tabel/Examples pluginu (`examples/`, `ExamplesBlockScanner`) są obecnie w **niezacommitowanym WIP**, więc wpięcie zrobić dopiero gdy WIP się ustabilizuje (albo za wyraźną zgodą).
+### ✅ Faza 2b — inlay typów parametrów w pluginie (zrobione)
+- `GherkinParamTypeInlayProvider` dla `<outline var>` nie pokazuje już na sztywno `: String` — liczy typ z kolumny `Examples` przez współdzielony `GherkinTypes.inferType` (ta sama logika co KSP): `: Int` / `: Double` / `: Boolean` / `: Long`, a `: String` gdy kolumna jest tekstowa/mieszana.
+- Dodano `GherkinTypes.inferType(values)` w `:gherkin-shared` (decyzja o typie w bibliotece). Po stronie pluginu jedynie trywialny, czysty skan kolumny (`exampleColumnValues`) ograniczony stabilnym `GherkinScenarioScanner` — bez zależności od WIP.
+- Testy jednostkowe bez IDE: 7 przypadków po stronie pluginu + testy `inferType` w bibliotece.
+
+### ⏳ Faza 2c — pozostałe (do zrobienia)
 - **`resolveCollisions` w pluginie:** funkcja dostępna, ale konsumenci wołają samo `generate()` per-krok. Dla kolidujących kroków liczyć nazwy z `resolveCollisions` na całym feature.
-- **`FeatureFileParser` / normalizacja / tokenizer komórek** — wynieść warstwę semantyczną; parser PSI w pluginie zostaje, ale deleguje.
+- **`FeatureFileParser` / normalizacja / tokenizer komórek** — wynieść warstwę semantyczną do `:gherkin-shared`; parser PSI w pluginie zostaje, ale deleguje (pozwoli też zastąpić lokalny skan `exampleColumnValues`).
 - **Złota nić testowa:** wspólny zestaw przypadków uruchamiany po obu stronach.
 
 ### Zasada na przyszłość
