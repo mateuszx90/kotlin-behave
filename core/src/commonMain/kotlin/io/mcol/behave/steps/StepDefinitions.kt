@@ -68,6 +68,14 @@ class StepDefinitions<C>(
                 mb.beforeHooks.addAll(other.stepBuilder.beforeHooks)
                 mb.afterHooks.addAll(stepBuilder.afterHooks)
                 mb.afterHooks.addAll(other.stepBuilder.afterHooks)
+                mb.beforeAllHooks.addAll(stepBuilder.beforeAllHooks)
+                mb.beforeAllHooks.addAll(other.stepBuilder.beforeAllHooks)
+                mb.afterAllHooks.addAll(stepBuilder.afterAllHooks)
+                mb.afterAllHooks.addAll(other.stepBuilder.afterAllHooks)
+                mb.beforeStepHooks.addAll(stepBuilder.beforeStepHooks)
+                mb.beforeStepHooks.addAll(other.stepBuilder.beforeStepHooks)
+                mb.afterStepHooks.addAll(stepBuilder.afterStepHooks)
+                mb.afterStepHooks.addAll(other.stepBuilder.afterStepHooks)
             }
         return StepDefinitions(factory, merged, entries + other.entries, mergedRegistry)
     }

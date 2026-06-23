@@ -8,6 +8,8 @@ import io.mcol.behave.steps.PendingException
 import io.mcol.behave.steps.ScenarioInfo
 import io.mcol.behave.steps.ScenarioStatus
 import io.mcol.behave.steps.StepDefinitions
+import io.mcol.behave.steps.StepHook
+import io.mcol.behave.steps.StepInfo
 
 data class ScenarioResult(
     val name: String,
@@ -111,7 +113,10 @@ class GherkinRunner<C>(
                     null
                 }
                 fn?.let {
+                    val stepInfo = StepInfo(step.keyword.name, step.text)
+                    val ctx = stepDefinitions.stepBuilder.ctx
                     try {
+                        runBeforeStepHooks(stepInfo, ctx)
                         it()
                     } catch (e: PendingException) {
                         isPending = true
@@ -119,6 +124,14 @@ class GherkinRunner<C>(
                     } catch (e: Throwable) {
                         stepError = e
                         failedStep = step.text
+                    } finally {
+                        // AfterStep always runs (e.g. screenshot on failure); record its own failure
+                        // only if the step itself passed.
+                        val afterErr = runAfterStepHooks(stepInfo, ctx)
+                        if (afterErr != null && stepError == null && !isPending) {
+                            stepError = afterErr
+                            failedStep = step.text
+                        }
                     }
                 }
             }
@@ -154,6 +167,30 @@ class GherkinRunner<C>(
             is Hook.WithCtx -> hook.block(ctx)
             is Hook.WithScenarioAndCtx -> hook.block(info, ctx)
         }
+    }
+
+    private suspend fun <C> dispatchStepHook(hook: StepHook<C>, info: StepInfo, ctx: C) {
+        when (hook) {
+            is StepHook.WithCtx -> hook.block(ctx)
+            is StepHook.WithStepAndCtx -> hook.block(info, ctx)
+        }
+    }
+
+    private suspend fun runBeforeStepHooks(info: StepInfo, ctx: C) {
+        for (hook in stepDefinitions.stepBuilder.beforeStepHooks) dispatchStepHook(hook, info, ctx)
+    }
+
+    /** Runs every AfterStep hook (reverse order); returns the first failure, if any. */
+    private suspend fun runAfterStepHooks(info: StepInfo, ctx: C): Throwable? {
+        var err: Throwable? = null
+        for (hook in stepDefinitions.stepBuilder.afterStepHooks.asReversed()) {
+            try {
+                dispatchStepHook(hook, info, ctx)
+            } catch (e: Throwable) {
+                if (err == null) err = e
+            }
+        }
+        return err
     }
 
     internal fun printResults(featureName: String, results: List<ScenarioResult>) {

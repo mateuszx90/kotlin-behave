@@ -8,11 +8,28 @@ sealed interface Hook<C> {
     class WithScenarioAndCtx<C>(val block: suspend (ScenarioInfo, C) -> Unit) : Hook<C>
 }
 
+/** The step a Before/AfterStep hook is firing around. */
+data class StepInfo(val keyword: String, val text: String)
+
+sealed interface StepHook<C> {
+    class WithCtx<C>(val block: suspend (C) -> Unit) : StepHook<C>
+    class WithStepAndCtx<C>(val block: suspend (StepInfo, C) -> Unit) : StepHook<C>
+}
+
 class StepBuilder<C>(val factory: () -> C) {
     var ctx: C = factory()
     private val entries = mutableListOf<StepEntry<C>>()
     val beforeHooks = mutableListOf<Hook<C>>()
     val afterHooks = mutableListOf<Hook<C>>()
+
+    // Suite-level hooks: run once per feature file. Wired by the Kotest integration
+    // (beforeSpec / afterSpec); they take no scenario ctx because no scenario exists yet.
+    val beforeAllHooks = mutableListOf<suspend () -> Unit>()
+    val afterAllHooks = mutableListOf<suspend () -> Unit>()
+
+    // Step-level hooks: run before/after every step (Background + Scenario). AfterStep always runs.
+    val beforeStepHooks = mutableListOf<StepHook<C>>()
+    val afterStepHooks = mutableListOf<StepHook<C>>()
     val typeRegistry = TypeRegistry()
 
     // Before overloads — `Before { }` resolves to the ctx overload with ignored parameter
@@ -29,6 +46,28 @@ class StepBuilder<C>(val factory: () -> C) {
     }
     fun After(fn: suspend (ScenarioInfo, C) -> Unit) {
         afterHooks.add(Hook.WithScenarioAndCtx(fn))
+    }
+
+    // Suite-level — run once before the first / after the last scenario of the feature.
+    fun BeforeAll(fn: suspend () -> Unit) {
+        beforeAllHooks.add(fn)
+    }
+    fun AfterAll(fn: suspend () -> Unit) {
+        afterAllHooks.add(fn)
+    }
+
+    // Step-level — run around every step. `BeforeStep { }` resolves to the ctx-only overload.
+    fun BeforeStep(fn: suspend (C) -> Unit) {
+        beforeStepHooks.add(StepHook.WithCtx(fn))
+    }
+    fun BeforeStep(fn: suspend (StepInfo, C) -> Unit) {
+        beforeStepHooks.add(StepHook.WithStepAndCtx(fn))
+    }
+    fun AfterStep(fn: suspend (C) -> Unit) {
+        afterStepHooks.add(StepHook.WithCtx(fn))
+    }
+    fun AfterStep(fn: suspend (StepInfo, C) -> Unit) {
+        afterStepHooks.add(StepHook.WithStepAndCtx(fn))
     }
 
     fun Given(expr: String, fn: suspend (Params) -> Unit) = register(expr, fn)

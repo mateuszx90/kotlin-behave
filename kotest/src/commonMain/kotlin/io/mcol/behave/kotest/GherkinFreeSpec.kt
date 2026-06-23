@@ -9,6 +9,8 @@ import io.mcol.behave.steps.PendingException
 import io.mcol.behave.steps.ScenarioInfo
 import io.mcol.behave.steps.ScenarioStatus
 import io.mcol.behave.steps.StepDefinitions
+import io.mcol.behave.steps.StepHook
+import io.mcol.behave.steps.StepInfo
 
 /**
  * Per-scenario variant for use with Compose UI tests (or any test that needs a
@@ -41,6 +43,8 @@ fun <C> FreeSpec.gherkin(
     runScenario: suspend (ctx: C, run: suspend () -> Unit) -> Unit,
 ) {
     val feature = loadFeature(path)
+    beforeSpec { steps.stepBuilder.beforeAllHooks.forEach { it() } }
+    afterSpec { steps.stepBuilder.afterAllHooks.asReversed().forEach { it() } }
     "Feature: ${feature.name}" - {
         for (scenario in feature.scenarios) {
             "Scenario: ${scenario.name}" {
@@ -87,6 +91,8 @@ fun <C> FreeSpec.gherkin(
     scenarioAsTest: Boolean = true,
 ) {
     val feature = loadFeature(path)
+    beforeSpec { steps.stepBuilder.beforeAllHooks.forEach { it() } }
+    afterSpec { steps.stepBuilder.afterAllHooks.asReversed().forEach { it() } }
 
     if (scenarioAsTest) {
         "Feature: ${feature.name}" - {
@@ -135,10 +141,19 @@ fun <C> FreeSpec.gherkin(
                     var scenarioFailed = false
                     for (step in scenarioSteps) {
                         val stepFn = steps.find(step)
+                        val stepInfo = StepInfo(step.keyword.name, step.text)
                         step.text {
                             if (!scenarioFailed) {
                                 try {
-                                    stepFn?.invoke() ?: throw MissingStepException(step.text)
+                                    val ctx = steps.stepBuilder.ctx
+                                    steps.stepBuilder.beforeStepHooks.forEach { dispatchStepHook(it, stepInfo, ctx) }
+                                    try {
+                                        stepFn?.invoke() ?: throw MissingStepException(step.text)
+                                    } finally {
+                                        steps.stepBuilder.afterStepHooks.asReversed().forEach {
+                                            runCatching { dispatchStepHook(it, stepInfo, ctx) }
+                                        }
+                                    }
                                 } catch (e: PendingException) {
                                     scenarioFailed = true
                                     println("  [PENDING] ${step.text}")
@@ -163,5 +178,16 @@ private suspend fun <C> dispatchHook(
     when (hook) {
         is Hook.WithCtx -> hook.block(ctx)
         is Hook.WithScenarioAndCtx -> hook.block(info, ctx)
+    }
+}
+
+private suspend fun <C> dispatchStepHook(
+    hook: StepHook<C>,
+    info: StepInfo,
+    ctx: C,
+) {
+    when (hook) {
+        is StepHook.WithCtx -> hook.block(ctx)
+        is StepHook.WithStepAndCtx -> hook.block(info, ctx)
     }
 }
