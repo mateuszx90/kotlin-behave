@@ -23,6 +23,22 @@ class FeatureFileParserTest {
     }
 
     @Test
+    fun `escaped pipe in an Examples cell is unescaped when expanding`() {
+        val feature =
+            """
+            Feature: F
+              Scenario Outline: S
+                Given v=<v>
+                Examples:
+                  | v    |
+                  | a\|b |
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertFalse(parsed.hasErrors)
+        assertTrue(parsed.allStepInstances.any { it.text == "v=a|b" })
+    }
+
+    @Test
     fun `empty Examples cells are preserved when expanding`() {
         val feature =
             """
