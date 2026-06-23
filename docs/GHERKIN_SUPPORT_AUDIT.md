@@ -170,10 +170,17 @@ Następnie:
 - Build zielony: `kotlin-behave` (test+detekt+spotless) oraz plugin (`compileKotlin`/`compileTestKotlin`).
 - **Efekt:** IDE i KSP liczą nazwy metod tym samym algorytmem (koniec rozjazdu np. przy literałach liczbowych).
 
-### ⏳ Faza 2 — do zrobienia (ten sam wzorzec)
-- **`resolveCollisions` w pluginie:** plugin ma już dostęp do funkcji, ale konsumenci nadal wołają samo `generate()` per-krok. Dla kolidujących kroków trzeba liczyć nazwy z `resolveCollisions` na całym feature (inaczej nawigacja/stuby rozjadą się z KSP przy kolizjach).
-- **Inferencja typów parametrów** (`inferVariableTypes`, mapowanie `{int}`→`Int`, …) — wynieść z `BehaveProcessor` do `:gherkin-shared`, użyć w pluginie (inlay hints/stuby pokażą `Int`/`Boolean` zamiast `String`).
-- **`FeatureFileParser` / normalizacja / tokenizer komórek** — wynieść warstwę semantyczną; parser PSI w pluginie zostaje, ale deleguje nazewnictwo/typowanie do `:gherkin-shared`.
+### ✅ Faza 2a — inferencja typów wyniesiona do `:gherkin-shared` (zrobione)
+- Nowy `GherkinTypes` w `:gherkin-shared`: `inferVariableTypes(templateText, instanceTexts)` + mapy `placeholderToKotlin` / `kotlinToPlaceholder`.
+- `BehaveProcessor.inferVariableTypes` deleguje do `GherkinTypes`; `CodeGenerator.builtinTypes` i `replaceOutlineVariablesTyped` korzystają z map współdzielonych (jedno źródło prawdy).
+- Dodano **bezpośrednie testy jednostkowe** inferencji (Int/Long/Double/Boolean, mixed→String, multi-kolumna, unifikacja tabela+standalone, quoted) — wcześniej pokryte tylko pośrednio.
+- Build zielony (kotlin-behave `build` z examples ex20 + delegacją).
+- `GherkinTypes` jest już na classpath pluginu (zależność z Fazy 1) — gotowe do użycia.
+
+### ⏳ Faza 2b — wpięcie po stronie pluginu (do zrobienia)
+- **Inlay typów parametrów** (`GherkinParamTypeInlayProvider`): dziś `OUTLINE_VAR -> ": String"` na sztywno. Powinien wołać `GherkinTypes.inferVariableTypes` i pokazywać `Int`/`Boolean`/… Wymaga przejścia PSI do tabeli `Examples` danego outline — a skanery tabel/Examples pluginu (`examples/`, `ExamplesBlockScanner`) są obecnie w **niezacommitowanym WIP**, więc wpięcie zrobić dopiero gdy WIP się ustabilizuje (albo za wyraźną zgodą).
+- **`resolveCollisions` w pluginie:** funkcja dostępna, ale konsumenci wołają samo `generate()` per-krok. Dla kolidujących kroków liczyć nazwy z `resolveCollisions` na całym feature.
+- **`FeatureFileParser` / normalizacja / tokenizer komórek** — wynieść warstwę semantyczną; parser PSI w pluginie zostaje, ale deleguje.
 - **Złota nić testowa:** wspólny zestaw przypadków uruchamiany po obu stronach.
 
 ### Zasada na przyszłość
