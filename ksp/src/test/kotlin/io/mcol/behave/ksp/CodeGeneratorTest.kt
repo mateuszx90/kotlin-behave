@@ -44,6 +44,26 @@ class CodeGeneratorTest {
     }
 
     @Test
+    fun `replaceOutlineVariablesTyped emits the placeholder matching each inferred type`() {
+        val varTypes = mapOf("count" to "Int", "ratio" to "Double", "enabled" to "Boolean", "big" to "Long")
+        val result = CodeGenerator.replaceOutlineVariablesTyped(
+            "values <count> <ratio> <enabled> <big>",
+            varTypes,
+        )
+        assertEquals("values {int} {double} {boolean} {long}", result)
+    }
+
+    @Test
+    fun `replaceOutlineVariablesTyped falls back to word for untyped or String variables`() {
+        // 'label' is absent from the map (mixed/String column) → stays {word}; 'n' is typed Int.
+        val result = CodeGenerator.replaceOutlineVariablesTyped(
+            "tick <n> times for <label>",
+            mapOf("n" to "Int"),
+        )
+        assertEquals("tick {int} times for {word}", result)
+    }
+
+    @Test
     fun `renders interface with no-param method`() {
         val iface =
             CodeGenerator.GeneratedInterface(
