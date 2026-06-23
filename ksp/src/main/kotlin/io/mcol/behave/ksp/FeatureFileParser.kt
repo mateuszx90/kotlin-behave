@@ -15,6 +15,7 @@ internal object FeatureFileParser {
         val text: String, // step text with {placeholders} and <variables> preserved
         val hasDataTable: Boolean, // true if a | table follows this step
         val tableColumns: List<String>, // column headers if DataTable present
+        val hasDocString: Boolean = false, // true if a """ / ``` doc string follows this step
     )
 
     data class RawStep(
@@ -130,6 +131,19 @@ internal object FeatureFileParser {
                 outlineHadExamples = true
                 expandExamples(lines, i, outlineSteps, outlineName, allRawSteps, errors, lineNumber)
                 i++
+                continue
+            }
+
+            // Doc String block: mark the preceding step and skip the fenced content so its lines
+            // are not mis-parsed as steps/tables.
+            if (line.startsWith("\"\"\"") || line.startsWith("```")) {
+                if (allSteps.isNotEmpty()) {
+                    allSteps[allSteps.lastIndex] = allSteps.last().copy(hasDocString = true)
+                }
+                val fence = if (line.startsWith("```")) "```" else "\"\"\""
+                i++
+                while (i < lines.size && lines[i] != fence) i++
+                if (i < lines.size) i++ // skip closing fence
                 continue
             }
 

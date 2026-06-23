@@ -31,6 +31,7 @@ class StepDefinitions<C>(
     fun find(
         stepText: String,
         dataTable: DataTable? = null,
+        docString: String? = null,
     ): (suspend () -> Unit)? {
         for (entry in entries) {
             val compiled = typeRegistry.compile(entry.expression)
@@ -48,13 +49,13 @@ class StepDefinitions<C>(
                     rawParams to dataTable
                 }
 
-            val params = Params(resolvedParams, resolvedTable)
+            val params = Params(resolvedParams, resolvedTable, docString)
             return { entry.fn(params) }
         }
         return null
     }
 
-    fun find(step: Step): (suspend () -> Unit)? = find(step.text, step.dataTable)
+    fun find(step: Step): (suspend () -> Unit)? = find(step.text, step.dataTable, step.docString)
 
     operator fun plus(other: StepDefinitions<C>): StepDefinitions<C> {
         val allExpressions = entries.map { it.expression } + other.entries.map { it.expression }

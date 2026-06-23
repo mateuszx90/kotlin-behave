@@ -10,6 +10,7 @@ data class Step(
     val keyword: Keyword,
     val text: String,
     val dataTable: DataTable? = null,
+    val docString: String? = null,
 )
 
 data class Background(

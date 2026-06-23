@@ -502,6 +502,7 @@ class BehaveProcessor(
             castParams = castParams,
             typeConversions = enumConversions,
             typeConverters = customConverters,
+            hasDocString = step.hasDocString,
         )
     }
 

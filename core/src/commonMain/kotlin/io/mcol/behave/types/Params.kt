@@ -6,6 +6,7 @@ import io.mcol.behave.model.DataTable
 class Params(
     private val values: List<Any>,
     val dataTable: DataTable? = null,
+    val docString: String? = null,
 ) {
     operator fun <T> get(index: Int): T = values[index] as T
 }
