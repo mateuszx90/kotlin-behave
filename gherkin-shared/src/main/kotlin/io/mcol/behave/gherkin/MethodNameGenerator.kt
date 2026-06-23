@@ -1,17 +1,23 @@
-package io.mcol.behave.ksp
+package io.mcol.behave.gherkin
 
 /**
  * Generates camelCase method names from Gherkin step text.
  *
+ * This is the SINGLE SOURCE OF TRUTH for step→method-name mapping, shared by the KSP
+ * processor (which generates the methods) and the IntelliJ plugin (which must compute the
+ * same identifier for navigation, stub generation and inspections). Do not reimplement it
+ * anywhere else — depend on this module instead.
+ *
  * Rules:
- * 1. Keyword (Given/When/Then/And/But) is NOT included — method names are keyword-agnostic
+ * 1. Keyword (Given/When/Then/And/But or `*`) is NOT included — method names are keyword-agnostic
  * 2. {placeholder} tokens are stripped from the name
  * 3. <variable> tokens are stripped from the name
- * 4. Trailing colon is stripped
- * 5. Remaining words are joined in camelCase
- * 6. Collisions get numeric suffix: name0, name1, ...
+ * 4. Standalone number literals are stripped
+ * 5. Trailing colon is stripped
+ * 6. Remaining words are joined in camelCase
+ * 7. Collisions get a numeric suffix via [resolveCollisions]: name0, name1, ...
  */
-internal object MethodNameGenerator {
+public object MethodNameGenerator {
     private val QUOTED_LITERAL_REGEX = Regex("\"[^\"]*\"")
     private val PLACEHOLDER_REGEX = Regex("\\{[^}]+}")
     private val VARIABLE_REGEX = Regex("<[^>]+>")
@@ -21,13 +27,13 @@ internal object MethodNameGenerator {
 
     /**
      * Generate a method name from step text (keyword is ignored).
-     * Does not handle collision — call [resolveCollisions] after generating all names.
+     * Does not handle collisions — call [resolveCollisions] after generating all names.
      */
-    fun generate(
+    public fun generate(
         keyword: String,
         text: String,
     ): String {
-        // Strip quoted literals ("value"), placeholders, and outline variables
+        // Strip quoted literals ("value"), placeholders, outline variables and number literals
         var clean = text
         clean = QUOTED_LITERAL_REGEX.replace(clean, " ")
         clean = PLACEHOLDER_REGEX.replace(clean, " ")
@@ -48,10 +54,20 @@ internal object MethodNameGenerator {
     }
 
     /**
+     * Convenience overload: split a single `"Given I do something"` string into keyword + text.
+     * The keyword is whatever precedes the first whitespace; it is ignored by [generate] anyway.
+     */
+    public fun generate(keywordAndText: String): String {
+        val keyword = keywordAndText.takeWhile { !it.isWhitespace() }
+        val text = keywordAndText.dropWhile { !it.isWhitespace() }.trim()
+        return generate(keyword, text)
+    }
+
+    /**
      * Given a list of (keyword, text) pairs, generate method names with collision suffixes applied.
      * Returns a list of method names in the same order as input.
      */
-    fun resolveCollisions(steps: List<Pair<String, String>>): List<String> {
+    public fun resolveCollisions(steps: List<Pair<String, String>>): List<String> {
         val raw = steps.map { (kw, text) -> generate(kw, text) }
         val counts = raw.groupBy { it }.mapValues { it.value.size }
         val indices = mutableMapOf<String, Int>()

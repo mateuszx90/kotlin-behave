@@ -1,4 +1,5 @@
 rootProject.name = "kotlin-behave"
+include(":gherkin-shared")
 include(":core")
 include(":kotest")
 include(":annotations")
