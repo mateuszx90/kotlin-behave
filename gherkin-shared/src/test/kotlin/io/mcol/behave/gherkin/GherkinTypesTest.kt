@@ -96,6 +96,17 @@ class GherkinTypesTest {
     }
 
     @Test
+    fun `inferType returns the unified type or null for value lists`() {
+        assertEquals("Int", GherkinTypes.inferType(listOf("1", "2", "3")))
+        assertEquals("Boolean", GherkinTypes.inferType(listOf("true", "false")))
+        assertEquals("Double", GherkinTypes.inferType(listOf("1.5", "2.0")))
+        assertEquals("Long", GherkinTypes.inferType(listOf("10000000000")))
+        assertEquals(null, GherkinTypes.inferType(listOf("alpha", "beta")))
+        assertEquals(null, GherkinTypes.inferType(listOf("1", "abc")))
+        assertEquals(null, GherkinTypes.inferType(emptyList()))
+    }
+
+    @Test
     fun `placeholder and kotlin type maps are inverse for the canonical names`() {
         for ((kotlin, placeholder) in GherkinTypes.kotlinToPlaceholder) {
             assertEquals(kotlin, GherkinTypes.placeholderToKotlin[placeholder])
