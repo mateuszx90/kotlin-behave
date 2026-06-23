@@ -614,73 +614,16 @@ class BehaveProcessor(
     /**
      * Infer a unified Kotlin type for each outline `<variable>` in [step], scanning EVERY concrete
      * instance in [allRawSteps] (Examples-table rows AND standalone literal steps that share this
-     * step's normalised shape). A variable is typed (Int/Long/Double/Boolean) only when ALL of its
-     * concrete values agree; any disagreement leaves it as String. Returns variable name → Kotlin type.
+     * step's shape). Delegates to the shared [io.mcol.behave.gherkin.GherkinTypes] so the IntelliJ
+     * plugin computes identical types.
      */
     private fun inferVariableTypes(
         step: FeatureFileParser.ParsedStep,
         allRawSteps: List<FeatureFileParser.RawStep>,
-    ): Map<String, String> {
-        // Position-ordered tokens of the template. Only unquoted <variable> tokens carry a name;
-        // all dynamic tokens become capture groups so we can match concrete instances and read back
-        // the value each variable took. Quoted "<var>" stays String (handled as a quoted token).
-        data class Tok(val range: IntRange, val group: String, val varName: String?)
-        val toks = mutableListOf<Tok>()
-        Regex("\"[^\"]*\"").findAll(step.text).forEach { toks.add(Tok(it.range, "\"([^\"]*)\"", null)) }
-        val quotedRanges = toks.map { it.range }
-        Regex("<([^>]+)>").findAll(step.text)
-            .filter { m -> quotedRanges.none { m.range.first in it } }
-            .forEach { toks.add(Tok(it.range, "(\\S+)", it.groupValues[1])) }
-        Regex("""(?<!\S)-?\d+\.\d+(?!\S)""").findAll(step.text)
-            .filter { m -> toks.none { m.range.first in it.range } }
-            .forEach { toks.add(Tok(it.range, "(-?\\d+\\.\\d+)", null)) }
-        Regex("""(?<!\S)-?\d+(?!\S)""").findAll(step.text)
-            .filter { m -> toks.none { m.range.first in it.range } }
-            .forEach { toks.add(Tok(it.range, "(-?\\d+)", null)) }
-
-        val sorted = toks.sortedBy { it.range.first }
-        val varGroupIndices = sorted.withIndex().filter { it.value.varName != null }
-        if (varGroupIndices.isEmpty()) return emptyMap()
-
-        // Build an anchored regex from the template so only true instances of THIS step match.
-        val pattern = buildString {
-            append("^")
-            var pos = 0
-            for (tok in sorted) {
-                if (tok.range.first > pos) append(Regex.escape(step.text.substring(pos, tok.range.first)))
-                append(tok.group)
-                pos = tok.range.last + 1
-            }
-            if (pos < step.text.length) append(Regex.escape(step.text.substring(pos)))
-            append("$")
-        }
-        val regex = Regex(pattern)
-
-        val valuesByVar = mutableMapOf<String, MutableList<String>>()
-        for (raw in allRawSteps) {
-            val match = regex.find(raw.text) ?: continue
-            val groups = match.groupValues.drop(1) // group 0 is the whole match
-            for ((idx, tok) in varGroupIndices) {
-                val v = groups.getOrNull(idx) ?: continue
-                valuesByVar.getOrPut(tok.varName!!) { mutableListOf() }.add(v)
-            }
-        }
-
-        // A variable is typed only when ALL its concrete values agree on one non-String type.
-        return valuesByVar.mapNotNull { (name, values) ->
-            if (values.isEmpty()) return@mapNotNull null
-            val kotlinTypes = values.map { v ->
-                when {
-                    v == "true" || v == "false" -> "Boolean"
-                    v.toIntOrNull() != null -> "Int"
-                    v.toLongOrNull() != null -> "Long"
-                    v.toDoubleOrNull() != null -> "Double"
-                    else -> "String"
-                }
-            }.toSet()
-            kotlinTypes.singleOrNull()?.takeIf { it != "String" }?.let { name to it }
-        }.toMap()
-    }
+    ): Map<String, String> = io.mcol.behave.gherkin.GherkinTypes.inferVariableTypes(
+        templateText = step.text,
+        instanceTexts = allRawSteps.map { it.text },
+    )
 
     private fun resolveParams(
         step: FeatureFileParser.ParsedStep,

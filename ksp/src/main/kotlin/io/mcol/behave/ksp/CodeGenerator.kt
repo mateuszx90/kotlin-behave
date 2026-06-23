@@ -369,16 +369,6 @@ internal object CodeGenerator {
     /** Convert <variable> tokens in step text to {word} for the emitted step expression. */
     fun replaceOutlineVariables(text: String): String = text.replace(Regex("<([^>]+)>"), "{word}")
 
-    /** Kotlin type name → builtin placeholder name (inverse of [builtinTypes], picking the canonical placeholder). */
-    private val typeNameToPlaceholder =
-        mapOf(
-            "Int" to "int",
-            "Long" to "long",
-            "Float" to "float",
-            "Double" to "double",
-            "Boolean" to "boolean",
-        )
-
     /**
      * Convert <variable> tokens to typed placeholders based on inferred Examples-table types.
      * A variable whose Examples values are consistently numeric/boolean becomes the matching
@@ -389,21 +379,12 @@ internal object CodeGenerator {
      */
     fun replaceOutlineVariablesTyped(text: String, varTypes: Map<String, String>): String = text.replace(Regex("<([^>]+)>")) { m ->
         val name = m.groupValues[1]
-        val placeholder = typeNameToPlaceholder[varTypes[name]] ?: "word"
+        val placeholder = io.mcol.behave.gherkin.GherkinTypes.kotlinToPlaceholder[varTypes[name]] ?: "word"
         "{$placeholder}"
     }
 
-    /** Built-in placeholder → Kotlin type mapping. */
-    val builtinTypes =
-        mapOf(
-            "string" to "String",
-            "int" to "Int",
-            "long" to "Long",
-            "float" to "Float",
-            "double" to "Double",
-            "word" to "String",
-            "boolean" to "Boolean",
-        )
+    /** Built-in placeholder → Kotlin type mapping (shared source of truth). */
+    val builtinTypes = io.mcol.behave.gherkin.GherkinTypes.placeholderToKotlin
 
     /**
      * Widening map for @BehaveCast: narrow type → (wider placeholder, wider Kotlin type, conversion expression).
