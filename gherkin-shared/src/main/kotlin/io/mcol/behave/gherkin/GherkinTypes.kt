@@ -91,17 +91,28 @@ public object GherkinTypes {
 
         // A variable is typed only when ALL its concrete values agree on one non-String type.
         return valuesByVar.mapNotNull { (name, values) ->
-            if (values.isEmpty()) return@mapNotNull null
-            val kotlinTypes = values.map { v ->
-                when {
-                    v == "true" || v == "false" -> "Boolean"
-                    v.toIntOrNull() != null -> "Int"
-                    v.toLongOrNull() != null -> "Long"
-                    v.toDoubleOrNull() != null -> "Double"
-                    else -> "String"
-                }
-            }.toSet()
-            kotlinTypes.singleOrNull()?.takeIf { it != "String" }?.let { name to it }
+            inferType(values)?.let { name to it }
         }.toMap()
+    }
+
+    /**
+     * Infer the unified Kotlin type for a single set of concrete string values (e.g. one Examples
+     * column). Returns `Int`/`Long`/`Double`/`Boolean` only when ALL values agree on that type;
+     * returns null for an empty list, a String column, or a mix of kinds (caller treats null as
+     * `String`). This is the value-level rule behind [inferVariableTypes] and is reused by IDE
+     * tooling so hints match what KSP generates.
+     */
+    public fun inferType(values: List<String>): String? {
+        if (values.isEmpty()) return null
+        val kotlinTypes = values.map { v ->
+            when {
+                v == "true" || v == "false" -> "Boolean"
+                v.toIntOrNull() != null -> "Int"
+                v.toLongOrNull() != null -> "Long"
+                v.toDoubleOrNull() != null -> "Double"
+                else -> "String"
+            }
+        }.toSet()
+        return kotlinTypes.singleOrNull()?.takeIf { it != "String" }
     }
 }
