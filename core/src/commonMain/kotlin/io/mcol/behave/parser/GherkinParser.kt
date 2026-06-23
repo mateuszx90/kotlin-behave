@@ -4,6 +4,14 @@ import io.mcol.behave.model.*
 
 object GherkinParser {
 
+    // Keyword synonyms (Gherkin spec): "Scenario Template:"≡"Scenario Outline:",
+    // "Example:"≡"Scenario:", "Scenarios:"≡"Examples:". Kept as helpers so [parse] stays simple.
+    private fun isOutlineStart(l: String) = l.startsWith("Scenario Outline:") || l.startsWith("Scenario Template:")
+
+    private fun isScenarioStart(l: String) = l.startsWith("Scenario:") || l.startsWith("Example:")
+
+    private fun isExamplesStart(l: String) = l.startsWith("Examples:") || l.startsWith("Scenarios:")
+
     fun parse(input: String): Feature {
         val lines = input.lines()
             .map { it.trim() }
@@ -75,20 +83,20 @@ object GherkinParser {
                     isBackground = true
                     pendingTags = emptySet()
                 }
-                line.startsWith("Scenario Outline:") || line.startsWith("Scenario Template:") -> {
+                isOutlineStart(line) -> {
                     flushScenario()
                     currentScenarioTags = pendingTags
                     pendingTags = emptySet()
                     currentScenarioName = line.substringAfter(':').trim()
                     isOutline = true
                 }
-                line.startsWith("Scenario:") -> {
+                isScenarioStart(line) -> {
                     flushScenario()
                     currentScenarioTags = pendingTags
                     pendingTags = emptySet()
-                    currentScenarioName = line.removePrefix("Scenario:").trim()
+                    currentScenarioName = line.substringAfter(':').trim()
                 }
-                line.startsWith("Examples:") -> {
+                isExamplesStart(line) -> {
                     flushPendingStep()
                     exampleTags = pendingTags
                     pendingTags = emptySet()

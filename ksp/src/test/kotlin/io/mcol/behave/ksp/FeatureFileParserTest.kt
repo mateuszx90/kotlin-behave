@@ -23,6 +23,39 @@ class FeatureFileParserTest {
     }
 
     @Test
+    fun `Example is a synonym for Scenario`() {
+        val feature =
+            """
+            Feature: F
+              Example: a single case
+                Given I am on the login page
+                Then I see the dashboard
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertFalse(parsed.hasErrors)
+        assertEquals(2, parsed.steps.size)
+        assertEquals("I am on the login page", parsed.steps[0].text)
+    }
+
+    @Test
+    fun `Scenarios is a synonym for Examples`() {
+        val feature =
+            """
+            Feature: F
+              Scenario Outline: counts
+                Given <count> words
+                Scenarios:
+                  | count |
+                  | 5     |
+                  | 11    |
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertFalse(parsed.hasErrors)
+        assertTrue(parsed.allStepInstances.any { it.text == "5 words" })
+        assertTrue(parsed.allStepInstances.any { it.text == "11 words" })
+    }
+
+    @Test
     fun `Background steps are included`() {
         val feature =
             """

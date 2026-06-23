@@ -181,6 +181,39 @@ class GherkinParserTest {
     }
 
     @Test
+    fun `Example is a synonym for Scenario`() {
+        val input = """
+            Feature: F
+
+              Example: a single case
+                Given something
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        assertEquals(1, feature.scenarios.size)
+        assertEquals("a single case", feature.scenarios[0].name)
+        assertEquals("something", feature.scenarios[0].steps[0].text)
+    }
+
+    @Test
+    fun `Scenarios is a synonym for Examples`() {
+        val input = """
+            Feature: F
+
+              Scenario Outline: counts
+                Given <count> words
+
+                Scenarios:
+                  | count |
+                  | 5     |
+                  | 11    |
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        assertEquals(2, feature.scenarios.size)
+        assertEquals("5 words", feature.scenarios[0].steps[0].text)
+        assertEquals("11 words", feature.scenarios[1].steps[0].text)
+    }
+
+    @Test
     fun `Scenario Template is treated like Scenario Outline`() {
         val input = """
             Feature: F
