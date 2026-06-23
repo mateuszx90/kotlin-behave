@@ -12,6 +12,8 @@ object GherkinParser {
 
     private fun isExamplesStart(l: String) = l.startsWith("Examples:") || l.startsWith("Scenarios:")
 
+    private fun isRuleStart(l: String) = l.startsWith("Rule:")
+
     /**
      * Read a Doc String that opens at [openIndex] (a line whose trimmed form starts with `"""` or
      * ` ``` `). Returns the de-indented content (lines joined by `\n`, comments/blank lines kept
@@ -96,6 +98,13 @@ object GherkinParser {
         var tableHeaders: List<String> = emptyList()
         var tableRows: MutableList<Map<String, String?>> = mutableListOf()
 
+        // Rule (Gherkin 6+): scenarios under a Rule also run the Rule's own Background, in addition
+        // to the feature Background. We bake the Rule Background into each Rule scenario's steps; the
+        // feature Background is still prepended by the runner, giving feature-bg → rule-bg → steps.
+        var inRule = false
+        var collectingRuleBackground = false
+        var ruleBackground = listOf<Step>()
+
         fun parseTags(line: String): Set<String> = line.trim().split("\\s+".toRegex()).filter { it.startsWith("@") }.toSet()
 
         fun flushPendingStep() {
@@ -110,12 +119,16 @@ object GherkinParser {
 
         fun flushScenario() {
             flushPendingStep()
-            if (isBackground) {
+            if (isBackground && collectingRuleBackground) {
+                ruleBackground = currentSteps.toList()
+            } else if (isBackground) {
                 background = Background(currentSteps.toList())
             } else if (currentScenarioName != null && !isOutline) {
                 val finalTags = featureTags + currentScenarioTags
-                scenarios.add(Scenario(currentScenarioName!!, currentSteps.toList(), tags = finalTags))
+                val steps = if (inRule) ruleBackground + currentSteps else currentSteps.toList()
+                scenarios.add(Scenario(currentScenarioName!!, steps, tags = finalTags))
             }
+            collectingRuleBackground = false
             currentSteps = mutableListOf()
             currentScenarioName = null
             currentScenarioTags = emptySet()
@@ -149,9 +162,16 @@ object GherkinParser {
                     pendingTags = emptySet()
                     featureName = line.removePrefix("Feature:").trim()
                 }
+                isRuleStart(line) -> {
+                    flushScenario()
+                    inRule = true
+                    ruleBackground = emptyList()
+                    pendingTags = emptySet()
+                }
                 line.startsWith("Background:") -> {
                     flushScenario()
                     isBackground = true
+                    collectingRuleBackground = inRule
                     pendingTags = emptySet()
                 }
                 isOutlineStart(line) -> {
@@ -184,7 +204,8 @@ object GherkinParser {
                         }
                         val rowLabel = row.entries.joinToString(", ") { (k, v) -> "$k=$v" }
                         val finalTags = featureTags + currentScenarioTags + exampleTags
-                        scenarios.add(Scenario("$currentScenarioName [$rowLabel]", resolvedSteps, listOf(row), finalTags))
+                        val finalSteps = if (inRule) ruleBackground + resolvedSteps else resolvedSteps
+                        scenarios.add(Scenario("$currentScenarioName [$rowLabel]", finalSteps, listOf(row), finalTags))
                     }
                 }
                 else -> {

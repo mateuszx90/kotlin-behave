@@ -181,6 +181,44 @@ class GherkinParserTest {
     }
 
     @Test
+    fun `Rule background is added to rule scenarios on top of the feature background`() {
+        val input = """
+            Feature: F
+
+              Background:
+                Given feature setup
+
+              Rule: first rule
+                Background:
+                  Given rule setup
+
+                Scenario: S1
+                  When act
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        // Feature-level background stays separate (the runner prepends it to every scenario).
+        assertEquals(listOf("feature setup"), feature.background!!.steps.map { it.text })
+        assertEquals(1, feature.scenarios.size)
+        assertEquals("S1", feature.scenarios[0].name)
+        // The rule's own background is baked into the rule scenario's steps, before its steps.
+        assertEquals(listOf("rule setup", "act"), feature.scenarios[0].steps.map { it.text })
+    }
+
+    @Test
+    fun `Rule without its own background leaves scenarios unchanged`() {
+        val input = """
+            Feature: F
+
+              Rule: r
+                Scenario: S
+                  When act
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        assertEquals(1, feature.scenarios.size)
+        assertEquals(listOf("act"), feature.scenarios[0].steps.map { it.text })
+    }
+
+    @Test
     fun `doc string is attached to the step with content preserved`() {
         val input = """
             Feature: F

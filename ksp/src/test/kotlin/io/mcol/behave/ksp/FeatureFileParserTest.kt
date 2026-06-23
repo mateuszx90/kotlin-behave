@@ -23,6 +23,23 @@ class FeatureFileParserTest {
     }
 
     @Test
+    fun `steps under a Rule and its Background are parsed`() {
+        val feature =
+            """
+            Feature: F
+              Rule: r
+                Background:
+                  Given rule setup
+                Scenario: S
+                  When act
+            """.trimIndent()
+        val parsed = FeatureFileParser.parse(feature)
+        assertFalse(parsed.hasErrors)
+        assertTrue(parsed.steps.any { it.text == "rule setup" })
+        assertTrue(parsed.steps.any { it.text == "act" })
+    }
+
+    @Test
     fun `doc string is flagged on the step and its content is skipped`() {
         val feature =
             """
