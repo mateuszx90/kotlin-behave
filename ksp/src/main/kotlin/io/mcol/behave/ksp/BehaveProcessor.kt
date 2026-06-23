@@ -12,6 +12,7 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import io.mcol.behave.gherkin.FeatureFileParser
 import io.mcol.behave.gherkin.MethodNameGenerator
 import java.io.File
 

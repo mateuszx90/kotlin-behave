@@ -1,15 +1,17 @@
-package io.mcol.behave.ksp
+package io.mcol.behave.gherkin
 
 /**
- * Lightweight raw-text Gherkin parser for the KSP processor.
+ * Lightweight raw-text Gherkin parser shared by the KSP processor and the IntelliJ plugin.
  *
  * Unlike the runtime GherkinParser, this parser:
  * - Does NOT expand Scenario Outline rows — preserves `<variable>` tokens as-is
  * - Preserves the original step text with all placeholder/variable tokens intact
- * - Is used at compile time only, not at runtime
  * - Collects ALL parse errors (with line numbers) instead of stopping at the first one
+ *
+ * JVM-only (the consumers are JVM) so it can use regex features the multiplatform commonMain
+ * source set would reject; nothing here is platform-specific beyond that.
  */
-internal object FeatureFileParser {
+public object FeatureFileParser {
     data class ParsedStep(
         val keyword: String, // "Given" | "When" | "Then" | "And" | "But"
         val text: String, // step text with {placeholders} and <variables> preserved
@@ -199,7 +201,7 @@ internal object FeatureFileParser {
     ): String {
         var s = text.lowercase()
         s = s.replace(Regex("\"[^\"]*\""), "{}") // "literal" and "<variable>" treated as placeholder
-        s = s.replace(Regex("\\{[^}]+}"), "{}")
+        s = s.replace(Regex("\\{[^}]+\\}"), "{}")
         s = s.replace(Regex("<[^>]+>"), "{}")
         // Replace standalone numbers (doubles first, then integers)
         s = s.replace(Regex("""(?<!\S)-?\d+\.\d+(?!\S)"""), "{}")
@@ -310,5 +312,5 @@ internal object FeatureFileParser {
     }
 
     // Delegates to the shared :gherkin tokenizer so the KSP and runtime parsers split rows identically.
-    private fun parseTableRow(line: String): List<String> = io.mcol.behave.gherkin.GherkinTable.splitRow(line)
+    private fun parseTableRow(line: String): List<String> = GherkinTable.splitRow(line)
 }

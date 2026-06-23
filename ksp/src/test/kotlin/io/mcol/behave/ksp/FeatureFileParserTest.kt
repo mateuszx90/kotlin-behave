@@ -1,5 +1,6 @@
 package io.mcol.behave.ksp
 
+import io.mcol.behave.gherkin.FeatureFileParser
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

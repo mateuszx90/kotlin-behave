@@ -198,9 +198,13 @@ Następnie:
 - **Tokenizer komórek z F5 zdedupowany:** wspólny `GherkinTable.splitRow` w `:gherkin`; runtime i KSP delegują (koniec duplikacji). Testy multiplatform.
 - Drobiazgi KMP/JS naprawione: `getOrDefault` (JVM-only) → `?:`; escape `\\}` w regexie (Kotlin/JS kompiluje z flagą `u`).
 
+### ✅ Faza 2c — `FeatureFileParser` wyniesiony do `:gherkin` (zrobione)
+- Kanoniczny parser `.feature` (`FeatureFileParser`, z `normalise`/`ParsedStep`/`RawStep`/`ParseError`) przeniesiony z `:ksp` do **`:gherkin`** (`jvmMain`, `public`). `:ksp` go importuje; plugin może go przyjąć zamiast własnej kopii `idea/FeatureFileParser.kt`, gdy ustabilizuje WIP.
+- W `jvmMain` (a nie `commonMain`), bo konsumenci to JVM (KSP + plugin) — unika ograniczeń regex `commonMain`/JS.
+
 ### ⏳ Faza 2c — pozostałe (do zrobienia)
 - **`resolveCollisions` w pluginie:** funkcja dostępna, ale konsumenci wołają samo `generate()` per-krok. Dla kolidujących kroków liczyć nazwy z `resolveCollisions` na całym feature.
-- **`FeatureFileParser` / normalizacja** — wynieść do `:gherkin` (parser PSI w pluginie zostaje, ale deleguje; pozwoli zastąpić lokalny skan `exampleColumnValues`).
+- **Plugin przyjmuje `:gherkin` `FeatureFileParser`** zamiast `idea/FeatureFileParser.kt` (blokowane przez WIP pluginu; wymaga dołożenia offsetów PSI).
 - **Złota nić testowa:** wspólny zestaw przypadków uruchamiany po obu stronach.
 
 ### Zasada na przyszłość
