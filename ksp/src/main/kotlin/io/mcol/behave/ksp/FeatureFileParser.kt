@@ -30,35 +30,14 @@ internal object FeatureFileParser {
 
     data class ParsedFeature(
         val steps: List<ParsedStep>, // all unique steps (deduplicated)
-        val allStepInstances: List<RawStep>, // all concrete values preserved (for type validation)
+        val allStepInstances: List<RawStep>, // all concrete values preserved (for type validation + inference)
         val allStepTemplates: List<ParsedStep> = emptyList(), // all steps before deduplication (for type unification)
         val errors: List<ParseError> = emptyList(), // accumulated parse errors
-        val exampleColumnTypes: Map<String, String> = emptyMap(), // inferred types from Examples tables
     ) {
         val hasErrors: Boolean get() = errors.isNotEmpty()
     }
 
     private val keywords = listOf("Given", "When", "Then", "And", "But")
-
-    /**
-     * Infer parameter type from Examples table values.
-     * Returns: "Int" | "Double" | "Boolean" | "String" | null if inconsistent
-     */
-    private fun inferTypeFromValues(values: List<String>): String? {
-        if (values.isEmpty()) return "String"
-
-        val types = values.map { value ->
-            when {
-                value == "true" || value == "false" -> "Boolean"
-                value.toIntOrNull() != null -> "Int"
-                value.toDoubleOrNull() != null -> "Double"
-                else -> "String"
-            }
-        }.toSet()
-
-        // If all same type, return it; if mixed, return null (requires explicit type)
-        return if (types.size == 1) types.first() else null
-    }
 
     /**
      * Resolve And/But to the previous Given/When/Then keyword.
@@ -83,12 +62,11 @@ internal object FeatureFileParser {
                     keywords.any { line.startsWith("$it ") }
             }.takeIf { it >= 0 }?.plus(1) ?: 1
             errors.add(ParseError(anchorLine, "Missing Feature: declaration in feature file"))
-            return ParsedFeature(emptyList(), emptyList(), emptyList(), errors, emptyMap())
+            return ParsedFeature(emptyList(), emptyList(), emptyList(), errors)
         }
 
         val allSteps = mutableListOf<ParsedStep>()
         val allRawSteps = mutableListOf<RawStep>()
-        val allColumnTypes = mutableMapOf<String, String>() // column name -> inferred type
         var currentScenarioName: String? = null
         val featureIndent = rawLines[featureLineIndex].let { it.length - it.trimStart().length }
         var currentSectionIndent = featureIndent
@@ -150,9 +128,7 @@ internal object FeatureFileParser {
             // Expand Scenario Outline Examples into allRawSteps
             if (line.startsWith("Examples:")) {
                 outlineHadExamples = true
-                val (columnTypes, exampleErrors) = expandExamples(lines, i, outlineSteps, outlineName, allRawSteps, errors, lineNumber)
-                allColumnTypes.putAll(columnTypes)
-                errors.addAll(exampleErrors)
+                expandExamples(lines, i, outlineSteps, outlineName, allRawSteps, errors, lineNumber)
                 i++
                 continue
             }
@@ -198,7 +174,7 @@ internal object FeatureFileParser {
                 seen.add(normalised)
             }
 
-        return ParsedFeature(unique, allRawSteps, allSteps, errors, allColumnTypes)
+        return ParsedFeature(unique, allRawSteps, allSteps, errors)
     }
 
     /** Normalise for deduplication: lowercase, replace {placeholder}, <variable>, and "literal" with {}, trim.
@@ -225,13 +201,10 @@ internal object FeatureFileParser {
         allRawSteps: MutableList<RawStep>,
         errors: MutableList<ParseError>,
         examplesLineNumber: Int,
-    ): Pair<Map<String, String>, List<ParseError>> {
+    ) {
         var j = startIndex + 1
         var header = emptyList<String>()
         val dataRows = mutableListOf<List<String>>()
-        val columnTypes = mutableMapOf<String, String>()
-        val exampleErrors = mutableListOf<ParseError>()
-
         while (j < lines.size) {
             val next = lines[j].trim()
             when {
@@ -257,26 +230,7 @@ internal object FeatureFileParser {
                         missing.joinToString { "<$it>" },
                 ),
             )
-            return columnTypes to exampleErrors
-        }
-
-        // Infer types from column values
-        for (colIdx in header.indices) {
-            val colName = header[colIdx]
-            val colValues = dataRows.mapNotNull { row -> row.getOrNull(colIdx) }
-            val inferredType = inferTypeFromValues(colValues)
-            if (inferredType != null) {
-                columnTypes[colName] = inferredType
-            } else if (colValues.isNotEmpty()) {
-                // Mixed types detected - require explicit @BehaveType
-                exampleErrors.add(
-                    ParseError(
-                        examplesLineNumber,
-                        "Examples column '<$colName>' has mixed types: ${colValues.joinToString(", ")}. " +
-                            "Use @BehaveType annotation to specify explicit type.",
-                    ),
-                )
-            }
+            return
         }
 
         for (row in dataRows) {
@@ -291,8 +245,6 @@ internal object FeatureFileParser {
                 allRawSteps.add(RawStep(kw, expanded, expandedName))
             }
         }
-
-        return columnTypes to exampleErrors
     }
 
     private fun readDataTableAhead(lines: List<String>, startFrom: Int): Pair<Boolean, List<String>> {

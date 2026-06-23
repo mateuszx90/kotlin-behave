@@ -42,7 +42,7 @@ private data class StepBuildContext(
     val classDecl: KSClassDeclaration,
     val typeConverters: Map<String, TypeConverterInfo>,
     val resolver: Resolver,
-    val exampleColumnTypes: Map<String, String> = emptyMap(), // inferred types from Examples tables
+    val allStepInstances: List<FeatureFileParser.RawStep> = emptyList(), // every concrete step (Examples rows + standalone)
 )
 
 class BehaveProcessor(
@@ -391,7 +391,7 @@ class BehaveProcessor(
             classDecl = classDecl,
             typeConverters = typeConverters,
             resolver = resolver,
-            exampleColumnTypes = parsed.exampleColumnTypes,
+            allStepInstances = parsed.allStepInstances,
         )
         val generatedSteps = parsed.steps.mapIndexed { i, step ->
             buildGeneratedStep(step, methodNames[i], buildContext)
@@ -447,12 +447,17 @@ class BehaveProcessor(
         methodName: String,
         ctx: StepBuildContext,
     ): io.mcol.behave.ksp.CodeGenerator.GeneratedStep {
-        val params = resolveParams(step, ctx.typeMappings, ctx.classDecl, ctx.exampleColumnTypes)
+        // Infer a unified Kotlin type for each outline <variable>, considering EVERY concrete
+        // instance of this step (Examples rows + standalone literals). All values must agree on a
+        // non-String type, otherwise the variable stays String.
+        val varTypes = inferVariableTypes(step, ctx.allStepInstances)
+        val params = resolveParams(step, ctx.typeMappings, ctx.classDecl, varTypes)
         var rawExpr = io.mcol.behave.ksp.CodeGenerator.escapeStepExpression(
-            io.mcol.behave.ksp.CodeGenerator.replaceOutlineVariables(
+            io.mcol.behave.ksp.CodeGenerator.replaceOutlineVariablesTyped(
                 io.mcol.behave.ksp.CodeGenerator.replaceNumberLiterals(
                     io.mcol.behave.ksp.CodeGenerator.replaceQuotedLiterals(step.text),
                 ),
+                varTypes,
             ),
         )
         if (rawExpr.contains("{word}")) {
@@ -605,14 +610,85 @@ class BehaveProcessor(
         }
     }
 
+    /**
+     * Infer a unified Kotlin type for each outline `<variable>` in [step], scanning EVERY concrete
+     * instance in [allRawSteps] (Examples-table rows AND standalone literal steps that share this
+     * step's normalised shape). A variable is typed (Int/Long/Double/Boolean) only when ALL of its
+     * concrete values agree; any disagreement leaves it as String. Returns variable name → Kotlin type.
+     */
+    private fun inferVariableTypes(
+        step: FeatureFileParser.ParsedStep,
+        allRawSteps: List<FeatureFileParser.RawStep>,
+    ): Map<String, String> {
+        // Position-ordered tokens of the template. Only unquoted <variable> tokens carry a name;
+        // all dynamic tokens become capture groups so we can match concrete instances and read back
+        // the value each variable took. Quoted "<var>" stays String (handled as a quoted token).
+        data class Tok(val range: IntRange, val group: String, val varName: String?)
+        val toks = mutableListOf<Tok>()
+        Regex("\"[^\"]*\"").findAll(step.text).forEach { toks.add(Tok(it.range, "\"([^\"]*)\"", null)) }
+        val quotedRanges = toks.map { it.range }
+        Regex("<([^>]+)>").findAll(step.text)
+            .filter { m -> quotedRanges.none { m.range.first in it } }
+            .forEach { toks.add(Tok(it.range, "(\\S+)", it.groupValues[1])) }
+        Regex("""(?<!\S)-?\d+\.\d+(?!\S)""").findAll(step.text)
+            .filter { m -> toks.none { m.range.first in it.range } }
+            .forEach { toks.add(Tok(it.range, "(-?\\d+\\.\\d+)", null)) }
+        Regex("""(?<!\S)-?\d+(?!\S)""").findAll(step.text)
+            .filter { m -> toks.none { m.range.first in it.range } }
+            .forEach { toks.add(Tok(it.range, "(-?\\d+)", null)) }
+
+        val sorted = toks.sortedBy { it.range.first }
+        val varGroupIndices = sorted.withIndex().filter { it.value.varName != null }
+        if (varGroupIndices.isEmpty()) return emptyMap()
+
+        // Build an anchored regex from the template so only true instances of THIS step match.
+        val pattern = buildString {
+            append("^")
+            var pos = 0
+            for (tok in sorted) {
+                if (tok.range.first > pos) append(Regex.escape(step.text.substring(pos, tok.range.first)))
+                append(tok.group)
+                pos = tok.range.last + 1
+            }
+            if (pos < step.text.length) append(Regex.escape(step.text.substring(pos)))
+            append("$")
+        }
+        val regex = Regex(pattern)
+
+        val valuesByVar = mutableMapOf<String, MutableList<String>>()
+        for (raw in allRawSteps) {
+            val match = regex.find(raw.text) ?: continue
+            val groups = match.groupValues.drop(1) // group 0 is the whole match
+            for ((idx, tok) in varGroupIndices) {
+                val v = groups.getOrNull(idx) ?: continue
+                valuesByVar.getOrPut(tok.varName!!) { mutableListOf() }.add(v)
+            }
+        }
+
+        // A variable is typed only when ALL its concrete values agree on one non-String type.
+        return valuesByVar.mapNotNull { (name, values) ->
+            if (values.isEmpty()) return@mapNotNull null
+            val kotlinTypes = values.map { v ->
+                when {
+                    v == "true" || v == "false" -> "Boolean"
+                    v.toIntOrNull() != null -> "Int"
+                    v.toLongOrNull() != null -> "Long"
+                    v.toDoubleOrNull() != null -> "Double"
+                    else -> "String"
+                }
+            }.toSet()
+            kotlinTypes.singleOrNull()?.takeIf { it != "String" }?.let { name to it }
+        }.toMap()
+    }
+
     private fun resolveParams(
         step: FeatureFileParser.ParsedStep,
         typeMappings: List<io.mcol.behave.ksp.CodeGenerator.TypeMapping>,
         classDecl: KSClassDeclaration,
-        exampleColumnTypes: Map<String, String> = emptyMap(),
+        varTypes: Map<String, String> = emptyMap(),
     ): List<io.mcol.behave.ksp.CodeGenerator.StepParam> {
         // Always extract inline params (quoted literals, {placeholders}, <variables>)
-        val inlineParams = resolveInlineParams(step.text, typeMappings, exampleColumnTypes)
+        val inlineParams = resolveInlineParams(step.text, typeMappings, varTypes)
         if (!step.hasDataTable) return inlineParams
         // DataTable steps: prepend any inline string params before the rows param
         return inlineParams + resolveDataTableParams(step, typeMappings)
@@ -621,7 +697,7 @@ class BehaveProcessor(
     private fun resolveInlineParams(
         text: String,
         typeMappings: List<io.mcol.behave.ksp.CodeGenerator.TypeMapping>,
-        exampleColumnTypes: Map<String, String> = emptyMap(),
+        varTypes: Map<String, String> = emptyMap(),
     ): List<io.mcol.behave.ksp.CodeGenerator.StepParam> {
         // Find quoted string ranges first so we can exclude <variable> found inside "..."
         val quotedRanges = Regex("\"[^\"]*\"").findAll(text).map { it.range }.toList()
@@ -693,8 +769,8 @@ class BehaveProcessor(
                 }
                 Kind.QUOTED -> "String" to tok.name // tok.name is variable name or "string"
                 Kind.VARIABLE -> {
-                    // Use inferred type from Examples table if available, otherwise default to String
-                    val inferredType = exampleColumnTypes[tok.name] ?: "String"
+                    // Use the unified inferred type for this variable, otherwise default to String
+                    val inferredType = varTypes[tok.name] ?: "String"
                     inferredType to tok.name
                 }
                 Kind.NUMBER -> {
