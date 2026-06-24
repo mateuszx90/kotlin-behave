@@ -18,7 +18,7 @@ per-scenario lifecycle.
 
 ```mermaid
 graph LR
-    subgraph Build Time
+    subgraph buildtime ["Build Time"]
         F[".feature file"] -->|read by| KSP["KSP Processor<br/>:ksp"]
         A["@BehaveFeature<br/>:annotations"] -->|scanned by| KSP
         KSP -->|generates| SPEC["*StepsSpec<br/>interface"]
@@ -26,11 +26,11 @@ graph LR
         KSP -->|generates| TEST["*GherkinTest<br/>FreeSpec class"]
     end
 
-    subgraph Your Code
+    subgraph yourcode ["Your Code"]
         STEPS["*Steps class"] -->|implements| SPEC
     end
 
-    subgraph Runtime
+    subgraph runtime ["Runtime"]
         TEST -->|uses| VAL
         VAL -->|wires| STEPS
         VAL -->|registers in| CORE["Step Builder<br/>+ Type Registry<br/>:core"]
