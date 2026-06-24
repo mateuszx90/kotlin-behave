@@ -69,13 +69,14 @@ Full setup — `:core` + `:kotest` + `:annotations` + `:ksp` for compile-time-sa
 ```kotlin
 // build.gradle.kts
 plugins {
+    id("io.kotest") version "6.1.11"                  // runs specs on JVM + every KMP target
     id("com.google.devtools.ksp") version "2.1.20-1.0.32"
 }
 
 dependencies {
     testImplementation("io.mcol.kotlin-behave:core:0.1.0")
     testImplementation("io.mcol.kotlin-behave:kotest:0.1.0")
-    testImplementation("io.kotest:kotest-runner-junit5:5.9.1")   // JVM
+    testImplementation("io.kotest:kotest-framework-engine:6.1.11")
     compileOnly("io.mcol.kotlin-behave:annotations:0.1.0")
     kspTest("io.mcol.kotlin-behave:ksp:0.1.0")
 }
@@ -84,9 +85,13 @@ ksp {
     arg("behave.featureDir", "src/test/resources")   // default: src/commonTest/resources
     arg("behave.projectDir", projectDir.absolutePath)
 }
-
-tasks.withType<Test> { useJUnitPlatform() }
 ```
+
+> **Kotest 6 is full KMP.** With the `io.kotest` plugin + `kotest-framework-engine` you need
+> **no** `kotest-runner-junit5` and **no** `useJUnitPlatform()` — Kotest launches specs on JVM
+> and all KMP targets. Only a plain `kotlin.jvm` test module that runs on the **JUnit
+> Platform** still needs them: swap the engine for
+> `io.kotest:kotest-runner-junit5:6.1.11` and add `tasks.withType<Test> { useJUnitPlatform() }`.
 
 **1 — Write the feature** (`src/test/resources/features/todo.feature`):
 
