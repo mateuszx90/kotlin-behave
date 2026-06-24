@@ -7,6 +7,7 @@ leaf per scenario (or per step), with IDE reporting, tag filtering, and per-scen
 Targets: JVM, JS, iOS, macOS, Linux.
 
 - [Dependency](#dependency)
+- [Test runner: JVM vs the io.kotest plugin](#test-runner-jvm-vs-the-iokotest-plugin)
 - [Basic usage](#basic-usage)
 - [Per-scenario setup](#per-scenario-setup)
 - [Step-level reporting](#step-level-reporting)
@@ -17,15 +18,40 @@ Targets: JVM, JS, iOS, macOS, Linux.
 
 ## Dependency
 
+Kotest 6 is full KMP. The recommended setup applies the `io.kotest` Gradle plugin and depends
+only on `kotest-framework-engine` — no JUnit runner, no `useJUnitPlatform()`:
+
 ```kotlin
+plugins {
+    id("io.kotest") version "6.1.11"           // launches specs on JVM + every KMP target
+}
+
 dependencies {
     testImplementation("io.mcol.kotlin-behave:core:0.1.0")
     testImplementation("io.mcol.kotlin-behave:kotest:0.1.0")
-    testImplementation("io.kotest:kotest-runner-junit5:5.9.1")   // JVM runner
+    testImplementation("io.kotest:kotest-framework-engine:6.1.11")
 }
+```
 
+## Test runner: JVM vs the io.kotest plugin
+
+Two ways to actually execute the specs — pick by how your test module is built:
+
+| Module | What to add | Notes |
+|---|---|---|
+| **Any (KMP or JVM) with the `io.kotest` plugin** | `id("io.kotest")` + `kotest-framework-engine` | No `kotest-runner-junit5`, no `useJUnitPlatform()`. Runs on JVM and all KMP targets. This is how kotlin-behave's own `:kotest` module is built. |
+| **Plain `kotlin.jvm` on the JUnit Platform** | `io.kotest:kotest-runner-junit5:6.1.11` + `tasks.withType<Test> { useJUnitPlatform() }` | The classic JVM path — use when you don't apply the plugin (e.g. a Gradle module already standardised on the JUnit Platform). |
+
+```kotlin
+// Plain-JVM / JUnit-Platform variant
+dependencies {
+    testImplementation("io.kotest:kotest-runner-junit5:6.1.11")
+}
 tasks.withType<Test> { useJUnitPlatform() }
 ```
+
+The `kotest-runner-junit5` artifact is **only** the JVM/JUnit-Platform launcher — it is not
+required by the library and not needed at all once the `io.kotest` plugin is applied.
 
 ## Basic usage
 
