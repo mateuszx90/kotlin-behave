@@ -52,7 +52,10 @@ public object FeatureFileParser {
     }
 
     fun parse(featureText: String): ParsedFeature {
-        val rawLines = featureText.lines()
+        // Localized keywords (`# language:`) are normalized to canonical English up front so the
+        // rest of this parser — and the KSP-generated names — stay dialect-independent. English
+        // input is returned unchanged by the translator.
+        val rawLines = GherkinI18n.toCanonical(featureText).lines()
         val lines = rawLines.map { it.trim() }
         val errors = mutableListOf<ParseError>()
 
