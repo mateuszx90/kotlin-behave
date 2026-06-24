@@ -43,7 +43,11 @@ Legenda: ✅ pełne · ⚠️ częściowe/bug · ❌ brak
 | 16 | **Puste komórki w tabelach** | ⚠️ bug | ⚠️ bug | ❓ | `parseTableRow` filtruje puste |
 | 17 | **Escapowanie `\|` `\\` `\n` w komórkach** | ❌ | ❌ | ❌ | naiwny `split("\|")` |
 | 18 | **`Rule:`** (Gherkin 6+) | ❌ | ❌ | ❌ | brak modelu i logiki |
-| 19 | **i18n / `# language:`** | ❌ | ❌ | ❌ | keywordy zaszyte po angielsku |
+| 19 | **i18n / `# language:`** | ✅ | ✅ | ❓ | `GherkinI18n.toCanonical` w `:gherkin`, oba parsery |
+| 20 | **Wiele bloków `Examples:` pod jednym Outline** | ✅ | ⚠️ bug | ❓ | runtime gubił nagłówek 2. bloku |
+| 21 | **Substytucja `<var>` w Doc Stringach i tabelach** | — | ❌ | ❓ | runtime podstawiał tylko w `text` |
+| 22 | **Tagi na `Rule:` + dziedziczenie** | — | ❌ | ❓ | tagi reguły były odrzucane |
+| 23 | **Content type Doc Stringa (` ```json `)** | — | ❌ | ❓ | media type po fence ignorowany |
 
 ---
 
@@ -120,7 +124,18 @@ Reguła projektu: **każdy fix = feature file reprodukujący problem** (`example
 - ✅ **F5** escapowanie `\| \\ \n` w komórkach (oba parsery)
 - ✅ **F6** Doc Strings (`"""` / ` ``` `) — model `Step.docString`, oba parsery, codegen (parametr `docString: String`), runtime threading, przykład `ex21`
 - ✅ **F7** `Rule:` (Gherkin 6+) — oba parsery; runtime składa Rule-Background na scenariusze reguły (kolejność: feature-bg → rule-bg → kroki); KSP parsuje kroki pod regułą
-- ⏭️ **F8** i18n / `# language:` — **świadomie pominięte** (najmniejszy zwrot dla projektu anglojęzycznego). Do zrobienia w przyszłości: `# language:` + tablice dialektów (najlepiej w KMP-owym `:gherkin`, by dzielić je między runtime, KSP i plugin).
+- ✅ **F8** i18n / `# language:` — zrobione zgodnie z rekomendacją (w KMP-owym `:gherkin`, dzielone między runtime i KSP). `GherkinDialects` (tablice dialektów: en/de/fr/es/pl) + `GherkinI18n.languageOf`/`toCanonical`. Translacja jest jednoprzebiegowa i **świadoma doc-stringów**: przepisuje wyłącznie prefiksy słów kluczowych na początku linii strukturalnych na kanoniczny angielski, po czym istniejące (angielskie) parsery działają bez zmian. Wejście angielskie zwracane bez modyfikacji (zerowy koszt/ryzyko). Oba parsery wołają `toCanonical` na samej górze (`GherkinParser.kt`, `FeatureFileParser.kt`). Przykład `ex25` (feature po niemiecku uruchamiany przez `gherkin(...)`). Rozszerzanie = czysta data w `GherkinDialects.byCode`. **Tłumaczone są tylko słowa kluczowe — tekst kroków zostaje w języku autora**, więc definicje kroków dopasowują się do oryginalnego tekstu (jak w Cucumber).
+
+### F9–F12 — domknięcie pokrycia runtime (zrobione)
+
+Wszystkie cztery to braki/bugi **wyłącznie w runtime** (`core/.../parser/GherkinParser.kt`). KSP ich nie dotyczy: wiele bloków `Examples:` KSP już rozwijał (lokalny `header` per blok w `expandExamples`), a content type i substytucja `<var>` w docstring/tabeli nie zmieniają generowanych sygnatur metod (docstring zawsze to jeden `docString: String`, tabela → klasa `Row`). Dlatego — wbrew domyślnej regule „rób w obu parserach" — fix jest jednostronny i to jest poprawne.
+
+- ✅ **F9 — Wiele bloków `Examples:` pod jednym `Scenario Outline:`.** Bug: runtime nie zerował `exampleHeaders` przy starcie kolejnego bloku, więc nagłówek 2. bloku był czytany jako wiersz danych. Fix: reset nagłówków w gałęzi `isExamplesStart`. Każdy blok może mieć własne `@tagi`. Test: `GherkinParserTest` „scenario outline supports multiple Examples blocks" + „...own tags".
+- ✅ **F10 — Substytucja `<var>` w Doc Stringach i Data Tables.** Wcześniej rozwijanie wiersza Examples podstawiało tylko w `step.text`. Helper `applyExampleRow` podstawia teraz również w `docString` oraz w komórkach tabeli (nagłówki i wartości). Test: „outline substitutes variables inside doc strings" / „...data table cells and headers".
+- ✅ **F11 — Tagi na `Rule:` + dziedziczenie.** Tagi przed `Rule:` były odrzucane (`pendingTags = emptySet()`); scenariusze reguły ich nie dziedziczyły. Dodano `ruleTags`, doliczane do `finalTags` scenariuszy reguły (zwykłych i z Outline). Test: „scenarios inherit Rule tags..." + „a second Rule replaces the first Rule's tags".
+- ✅ **F12 — Content type Doc Stringa.** Media type po fence (` ```json ` / `"""xml`) był gubiony. Dodano `Step.docStringContentType` oraz `Params.docStringContentType` (czytelne z ręcznie pisanego DSL `steps {}`); `extractDocString` zwraca teraz `DocString(content, contentType, nextIndex)`. KSP-owe kroki dalej dostają sam `docString`. Test: „doc string captures content type after the backtick/quote fence" + „...leaves it null".
+
+Przykład end-to-end (parsowany **i** uruchamiany): `ex24` — `examples/.../features/24_outline_substitution.feature` + `OutlineSubstitutionSteps.kt` (wiele bloków Examples, substytucja w docstring/tabeli, `params.docStringContentType`, otagowana `Rule:`).
 
 ---
 

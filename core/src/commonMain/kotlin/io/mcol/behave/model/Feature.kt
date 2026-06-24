@@ -43,6 +43,8 @@ data class Step(
     val text: String,
     val dataTable: DataTable? = null,
     val docString: String? = null,
+    /** Optional content type declared after the doc string's opening fence, e.g. ```json -> "json". */
+    val docStringContentType: String? = null,
 )
 
 data class Background(

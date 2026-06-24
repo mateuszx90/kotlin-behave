@@ -415,4 +415,282 @@ class GherkinParserTest {
     }
 
     // endregion
+
+    // region multiple Examples blocks ---------------------------------------
+
+    @Test
+    fun `scenario outline supports multiple Examples blocks`() {
+        val input = """
+            Feature: F
+
+              Scenario Outline: counts
+                Given <count> words
+                Then result is <expected>
+
+                Examples:
+                  | count | expected |
+                  | 5     | 5        |
+
+                Examples:
+                  | count | expected |
+                  | 11    | 10       |
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        assertEquals(2, feature.scenarios.size)
+        assertEquals("5 words", feature.scenarios[0].steps[0].text)
+        assertEquals("11 words", feature.scenarios[1].steps[0].text)
+        assertEquals("result is 10", feature.scenarios[1].steps[1].text)
+    }
+
+    @Test
+    fun `each Examples block carries its own tags merged with feature and scenario tags`() {
+        val input = """
+            @feat
+            Feature: F
+
+              @outline
+              Scenario Outline: counts
+                Given <count> words
+
+                @smoke
+                Examples:
+                  | count |
+                  | 1     |
+
+                @regression
+                Examples:
+                  | count |
+                  | 2     |
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        assertEquals(setOf("@feat", "@outline", "@smoke"), feature.scenarios[0].tags)
+        assertEquals(setOf("@feat", "@outline", "@regression"), feature.scenarios[1].tags)
+    }
+
+    // endregion
+
+    // region outline substitution into doc strings & data tables -------------
+
+    @Test
+    fun `outline substitutes variables inside doc strings`() {
+        val input = """
+            Feature: F
+
+              Scenario Outline: payloads
+                When I send:
+                  ```
+                  name=<name>
+                  ```
+
+                Examples:
+                  | name  |
+                  | alice |
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        assertEquals("name=alice", feature.scenarios[0].steps[0].docString)
+    }
+
+    @Test
+    fun `outline substitutes variables inside data table cells and headers`() {
+        val input = """
+            Feature: F
+
+              Scenario Outline: configs
+                Given the config:
+                  | <key> | value  |
+                  | name  | <name> |
+
+                Examples:
+                  | key  | name  |
+                  | attr | alice |
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        val row = feature.scenarios[0].steps[0].dataTable!!.rows[0]
+        assertEquals("alice", row["value"])
+        assertEquals("name", row["attr"])
+    }
+
+    // endregion
+
+    // region Rule tags -------------------------------------------------------
+
+    @Test
+    fun `scenarios inherit Rule tags merged with feature and scenario tags`() {
+        val input = """
+            @feat
+            Feature: F
+
+              @rule
+              Rule: r
+                @s
+                Scenario: S
+                  When act
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        assertEquals(setOf("@feat", "@rule", "@s"), feature.scenarios[0].tags)
+    }
+
+    @Test
+    fun `a second Rule replaces the first Rule's tags`() {
+        val input = """
+            Feature: F
+
+              @r1
+              Rule: one
+                Scenario: A
+                  When act
+
+              @r2
+              Rule: two
+                Scenario: B
+                  When act
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        assertEquals(setOf("@r1"), feature.scenarios[0].tags)
+        assertEquals(setOf("@r2"), feature.scenarios[1].tags)
+    }
+
+    // endregion
+
+    // region i18n / localized keywords ---------------------------------------
+
+    @Test
+    fun `parses a German feature via the language header`() {
+        val input = """
+            # language: de
+            Funktionalität: Zähler
+
+              Grundlage:
+                Angenommen ein Zähler bei 0
+
+              Szenario: Hochzählen
+                Wenn ich erhöhe
+                Und ich erhöhe
+                Dann ist es 2
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        assertEquals("Zähler", feature.name)
+        // Background "Angenommen" -> Given; its keyword and text both survive translation.
+        assertEquals(Keyword.GIVEN, feature.background!!.steps[0].keyword)
+        assertEquals(listOf("ein Zähler bei 0"), feature.background!!.steps.map { it.text })
+        assertEquals(1, feature.scenarios.size)
+        assertEquals("Hochzählen", feature.scenarios[0].name)
+        // Background steps are not part of scenario.steps (the runner prepends them), so the
+        // scenario holds only When/And/Then.
+        val steps = feature.scenarios[0].steps
+        assertEquals(3, steps.size)
+        assertEquals(Keyword.WHEN, steps[0].keyword)
+        assertEquals(Keyword.AND, steps[1].keyword)
+        assertEquals(Keyword.THEN, steps[2].keyword)
+        // Step text is NOT translated — only keywords are.
+        assertEquals("ich erhöhe", steps[0].text)
+    }
+
+    @Test
+    fun `expands a localized Scenario Outline`() {
+        val input = """
+            # language: de
+            Funktionalität: F
+
+              Szenariogrundriss: zählen
+                Wenn ich <n> nehme
+                Dann ist es <n>
+
+                Beispiele:
+                  | n |
+                  | 3 |
+                  | 5 |
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        assertEquals(2, feature.scenarios.size)
+        assertEquals("ich 3 nehme", feature.scenarios[0].steps[0].text)
+        assertEquals("ich 5 nehme", feature.scenarios[1].steps[0].text)
+    }
+
+    @Test
+    fun `localized keyword inside a doc string is left untranslated`() {
+        val input = """
+            # language: de
+            Funktionalität: F
+
+              Szenario: S
+                Wenn ich sende:
+                  ```
+                  Wenn this German keyword stays literal
+                  ```
+                Dann ist es gesendet
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        // The "Wenn " line inside the doc string must remain content, not become "When ".
+        assertEquals("Wenn this German keyword stays literal", feature.scenarios[0].steps[0].docString)
+    }
+
+    @Test
+    fun `an English feature is unaffected by i18n translation`() {
+        val input = """
+            Feature: Plain
+
+              Scenario: S
+                Given a thing
+                When I act
+                Then it works
+        """.trimIndent()
+        val feature = GherkinParser.parse(input)
+        assertEquals("Plain", feature.name)
+        assertEquals(3, feature.scenarios[0].steps.size)
+        assertEquals(Keyword.GIVEN, feature.scenarios[0].steps[0].keyword)
+    }
+
+    // endregion
+
+    // region doc string content type -----------------------------------------
+
+    @Test
+    fun `doc string captures content type after the backtick fence`() {
+        val input = """
+            Feature: F
+
+              Scenario: S
+                Given json:
+                  ```json
+                  {"a": 1}
+                  ```
+        """.trimIndent()
+        val step = GherkinParser.parse(input).scenarios[0].steps[0]
+        assertEquals("json", step.docStringContentType)
+        assertEquals("{\"a\": 1}", step.docString)
+    }
+
+    @Test
+    fun `doc string captures content type after the quote fence`() {
+        val input = "" +
+            "Feature: F\n" +
+            "\n" +
+            "  Scenario: S\n" +
+            "    Given xml:\n" +
+            "      \"\"\"xml\n" +
+            "      <tag/>\n" +
+            "      \"\"\"\n"
+        val step = GherkinParser.parse(input).scenarios[0].steps[0]
+        assertEquals("xml", step.docStringContentType)
+        assertEquals("<tag/>", step.docString)
+    }
+
+    @Test
+    fun `doc string without content type leaves it null`() {
+        val input = """
+            Feature: F
+
+              Scenario: S
+                Given plain:
+                  ```
+                  hello
+                  ```
+        """.trimIndent()
+        val step = GherkinParser.parse(input).scenarios[0].steps[0]
+        assertEquals(null, step.docStringContentType)
+        assertEquals("hello", step.docString)
+    }
+
+    // endregion
 }

@@ -14,16 +14,23 @@ object GherkinParser {
 
     private fun isRuleStart(l: String) = l.startsWith("Rule:")
 
+    /** Result of reading a Doc String: its de-indented [content], optional [contentType] declared
+     *  after the opening fence (```json -> "json"), and [nextIndex] = the line after the close. */
+    internal data class DocString(val content: String, val contentType: String?, val nextIndex: Int)
+
     /**
      * Read a Doc String that opens at [openIndex] (a line whose trimmed form starts with `"""` or
      * ` ``` `). Returns the de-indented content (lines joined by `\n`, comments/blank lines kept
-     * verbatim) and the index of the line AFTER the closing fence. The opening fence's column sets
-     * how much leading whitespace is stripped from each content line (Gherkin indentation rule).
+     * verbatim), the content type declared after the opening fence (if any), and the index of the
+     * line AFTER the closing fence. The opening fence's column sets how much leading whitespace is
+     * stripped from each content line (Gherkin indentation rule).
      */
-    internal fun extractDocString(rawLines: List<String>, openIndex: Int): Pair<String, Int> {
+    internal fun extractDocString(rawLines: List<String>, openIndex: Int): DocString {
         val openRaw = rawLines[openIndex]
         val fence = if (openRaw.trim().startsWith("```")) "```" else "\"\"\""
         val indent = openRaw.indexOf(fence).coerceAtLeast(0)
+        // Anything after the opening fence is the content type (media type); the closing fence is bare.
+        val contentType = openRaw.trim().removePrefix(fence).trim().ifEmpty { null }
         val content = mutableListOf<String>()
         var i = openIndex + 1
         while (i < rawLines.size && rawLines[i].trim() != fence) {
@@ -34,13 +41,15 @@ object GherkinParser {
             i++
         }
         val next = if (i < rawLines.size) i + 1 else i // skip closing fence when present
-        return content.joinToString("\n") to next
+        return DocString(content.joinToString("\n"), contentType, next)
     }
 
     fun parse(input: String): Feature {
+        // Translate localized keywords (`# language:`) to canonical English first, so everything
+        // below stays English-only. English input is returned unchanged by the translator.
         // Keep raw lines: comments/blank lines are skipped inline so they are NOT stripped from
         // inside a Doc String (where `#` and blank lines are literal content).
-        val rawLines = input.lines()
+        val rawLines = io.mcol.behave.gherkin.GherkinI18n.toCanonical(input).lines()
 
         var featureName = ""
         var featureTags = emptySet<String>()
@@ -68,6 +77,7 @@ object GherkinParser {
         var inRule = false
         var collectingRuleBackground = false
         var ruleBackground = listOf<Step>()
+        var ruleTags = emptySet<String>() // tags on the current Rule:, inherited by its scenarios
 
         fun parseTags(line: String): Set<String> = line.trim().split("\\s+".toRegex()).filter { it.startsWith("@") }.toSet()
 
@@ -88,7 +98,7 @@ object GherkinParser {
             } else if (isBackground) {
                 background = Background(currentSteps.toList())
             } else if (currentScenarioName != null && !isOutline) {
-                val finalTags = featureTags + currentScenarioTags
+                val finalTags = featureTags + inheritedRuleTags(inRule, ruleTags) + currentScenarioTags
                 val steps = if (inRule) ruleBackground + currentSteps else currentSteps.toList()
                 scenarios.add(Scenario(currentScenarioName!!, steps, tags = finalTags))
             }
@@ -110,9 +120,9 @@ object GherkinParser {
             val line = rawLines[li].trim()
             // A Doc String ("""... or ```...) attaches its content to the preceding step.
             if (pendingStep != null && (line.startsWith("\"\"\"") || line.startsWith("```"))) {
-                val (doc, next) = extractDocString(rawLines, li)
-                pendingStep = pendingStep?.copy(docString = doc)
-                li = next
+                val doc = extractDocString(rawLines, li)
+                pendingStep = pendingStep?.copy(docString = doc.content, docStringContentType = doc.contentType)
+                li = doc.nextIndex
                 continue
             }
             if (line.isEmpty() || line.startsWith("#")) {
@@ -130,6 +140,7 @@ object GherkinParser {
                     flushScenario()
                     inRule = true
                     ruleBackground = emptyList()
+                    ruleTags = pendingTags
                     pendingTags = emptySet()
                 }
                 line.startsWith("Background:") -> {
@@ -156,6 +167,9 @@ object GherkinParser {
                     exampleTags = pendingTags
                     pendingTags = emptySet()
                     inExamples = true
+                    // Each Examples block has its own header row — reset so a second block under the
+                    // same outline does not reuse the first block's headers (treating its header as data).
+                    exampleHeaders = listOf()
                 }
                 inExamples && line.startsWith("|") -> {
                     val cells = parseTableRow(line)
@@ -163,11 +177,10 @@ object GherkinParser {
                         exampleHeaders = cells
                     } else {
                         val row = exampleHeaders.zip(cells).toMap()
-                        val resolvedSteps = currentSteps.map { step ->
-                            step.copy(text = row.entries.fold(step.text) { t, (k, v) -> t.replace("<$k>", v) })
-                        }
+                        val resolvedSteps = currentSteps.map { step -> applyExampleRow(step, row) }
                         val rowLabel = row.entries.joinToString(", ") { (k, v) -> "$k=$v" }
-                        val finalTags = featureTags + currentScenarioTags + exampleTags
+                        val finalTags =
+                            featureTags + inheritedRuleTags(inRule, ruleTags) + currentScenarioTags + exampleTags
                         val finalSteps = if (inRule) ruleBackground + resolvedSteps else resolvedSteps
                         scenarios.add(Scenario("$currentScenarioName [$rowLabel]", finalSteps, listOf(row), finalTags))
                     }
@@ -192,6 +205,21 @@ object GherkinParser {
         flushScenario()
 
         return Feature(featureName, background, scenarios, featureTags)
+    }
+
+    /** Tags a scenario inherits from its enclosing Rule — the Rule's own tags when inside one, else none. */
+    private fun inheritedRuleTags(inRule: Boolean, ruleTags: Set<String>): Set<String> = if (inRule) ruleTags else emptySet()
+
+    /**
+     * Substitute one Examples row's `<variable>` tokens everywhere they may appear in a step:
+     * the step text, its doc string, and its data table (both headers and cell values).
+     */
+    private fun applyExampleRow(step: Step, row: Map<String, String>): Step {
+        fun sub(s: String): String = row.entries.fold(s) { acc, (k, v) -> acc.replace("<$k>", v) }
+        val newTable = step.dataTable?.let { dt ->
+            DataTable(dt.rows.map { r -> r.entries.associate { (k, v) -> sub(k) to v?.let(::sub) } })
+        }
+        return step.copy(text = sub(step.text), docString = step.docString?.let(::sub), dataTable = newTable)
     }
 
     internal fun stepKeyword(line: String): Pair<Keyword, String>? {
