@@ -23,13 +23,14 @@ the compiler tells you if a step is missing. No runtime string matching, full ID
 ```kotlin
 // build.gradle.kts of the module containing your step definitions
 plugins {
+    id("io.kotest") version "6.1.11"                    // runs specs on JVM + every KMP target
     id("com.google.devtools.ksp") version "2.1.20-1.0.32"
 }
 
 dependencies {
     testImplementation("io.mcol.kotlin-behave:core:0.1.0")
     testImplementation("io.mcol.kotlin-behave:kotest:0.1.0")
-    testImplementation("io.kotest:kotest-runner-junit5:5.9.1")   // JVM
+    testImplementation("io.kotest:kotest-framework-engine:6.1.11")
     compileOnly("io.mcol.kotlin-behave:annotations:0.1.0")
     kspTest("io.mcol.kotlin-behave:ksp:0.1.0")
 }
@@ -39,9 +40,13 @@ ksp {
     arg("behave.featureDir", "src/test/resources")     // default: src/commonTest/resources
     arg("behave.projectDir", projectDir.absolutePath)
 }
-
-tasks.withType<Test> { useJUnitPlatform() }
 ```
+
+> **Test runner.** With Kotest 6's `io.kotest` plugin + `kotest-framework-engine` there's no
+> `kotest-runner-junit5` and no `useJUnitPlatform()` — it launches specs on JVM and all KMP
+> targets. A plain `kotlin.jvm` module on the JUnit Platform instead needs
+> `io.kotest:kotest-runner-junit5:6.1.11` + `tasks.withType<Test> { useJUnitPlatform() }`.
+> See [Kotest Integration](kotest.md#test-runner-jvm-vs-the-iokotest-plugin).
 
 > **KMP note:** for a multiplatform module use the matching source-set configurations,
 > e.g. `kspJvmTest(...)` / `kspDesktopTest(...)` and put features under the test source set
