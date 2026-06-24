@@ -254,15 +254,16 @@ internal object CodeGenerator {
                 val converter = step.typeConverters[i]
 
                 if (converter != null) {
-                    // Use custom type converter function with multiple parameters if needed
-                    if (converter.paramCount == 1) {
-                        appendLine("                    val p${i + 1} = (params[$i] as String).${converter.functionName}()")
-                    } else {
-                        val converterParams = (0 until converter.paramCount).joinToString(", ") { idx ->
-                            "params[${i + idx}] as ${step.params.getOrNull(i + idx)?.typeName ?: "Any"}"
-                        }
-                        appendLine("                    val p${i + 1} = ${converter.qualifiedName}($converterParams)")
+                    // Always call via the fully qualified name as a regular function — works
+                    // both for non-extension `fun convert(s: String)` and extension
+                    // `fun String.convert()` (Kotlin allows extension fns to be called
+                    // with the receiver as the first argument when accessed by FQN).
+                    // The old extension-style `(params[i] as String).convert()` broke for
+                    // non-extension converters because it implied a `String.convert()` ext fn.
+                    val converterParams = (0 until converter.paramCount).joinToString(", ") { idx ->
+                        "params[${i + idx}] as ${step.params.getOrNull(i + idx)?.typeName ?: "String"}"
                     }
+                    appendLine("                    val p${i + 1} = ${converter.qualifiedName}($converterParams)")
                 } else if (conversion != null) {
                     // Use enum valueOf()
                     appendLine("                    val p${i + 1} = $conversion.valueOf((params[$i] as String).uppercase())")
