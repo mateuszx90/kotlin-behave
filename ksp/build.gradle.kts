@@ -11,6 +11,8 @@ dependencies {
     implementation(project(":annotations"))
     implementation(project(":core"))
     implementation(libs.ksp.api)
+    implementation(libs.kotlinpoet)
+    implementation(libs.kotlinpoet.ksp)
     compileOnly(gradleApi())
 
     testImplementation(kotlin("test"))
