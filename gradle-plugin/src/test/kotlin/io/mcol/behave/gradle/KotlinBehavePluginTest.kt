@@ -56,6 +56,8 @@ class KotlinBehavePluginTest {
         assertContains(result.output, "kspTestKotlin")
         // Kotlin JVM got applied: its compile task is present.
         assertContains(result.output, "compileTestKotlin")
+        // The behaveLint task is registered.
+        assertContains(result.output, "behaveLint")
         assertTrue(
             result.output.contains("BUILD SUCCESSFUL"),
             "Expected the consumer project to configure successfully:\n${result.output}",

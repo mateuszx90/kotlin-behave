@@ -10,6 +10,8 @@ version = "0.1.0"
 dependencies {
     implementation(libs.kotlin.gradlePlugin)
     implementation(libs.ksp.gradlePlugin)
+    // Reuse the shared Gherkin parser + method-name generator for the behaveLint task.
+    implementation(project(":gherkin"))
 
     testImplementation(kotlin("test"))
     testImplementation(gradleTestKit())
