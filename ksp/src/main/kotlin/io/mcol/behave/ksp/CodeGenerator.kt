@@ -331,8 +331,14 @@ internal object CodeGenerator {
                     }
                     out.appendLine("        val p${i + 1} = ${converter.qualifiedName}($converterParams)")
                 } else if (conversion != null) {
-                    // Use enum valueOf()
-                    out.appendLine("        val p${i + 1} = $conversion.valueOf((params[$i] as String).uppercase())")
+                    val builtin = builtinScalarConversions[conversion]
+                    if (builtin != null) {
+                        // Built-in type (e.g. kotlin.time.Duration) — no hand-written @TypeConverter needed.
+                        out.appendLine("        val p${i + 1} = ${builtin("(params[$i] as String)")}")
+                    } else {
+                        // Otherwise assume an enum and convert case-insensitively via valueOf().
+                        out.appendLine("        val p${i + 1} = $conversion.valueOf((params[$i] as String).uppercase())")
+                    }
                 } else {
                     out.appendLine("        val p${i + 1} = params[$i] as $destructType")
                 }
@@ -460,6 +466,17 @@ internal object CodeGenerator {
 
     /** Built-in placeholder → Kotlin type mapping (shared source of truth). */
     val builtinTypes = io.mcol.behave.gherkin.GherkinTypes.placeholderToKotlin
+
+    /**
+     * Built-in `@Type` scalar conversions that need no hand-written `@TypeConverter`. Keyed by the
+     * target type's fully-qualified name; the value turns a `String` accessor expression into the
+     * conversion call. Anything not listed here (and lacking a `@TypeConverter`) is assumed to be an
+     * enum and converted with a case-insensitive `valueOf()`.
+     */
+    internal val builtinScalarConversions: Map<String, (String) -> String> =
+        mapOf(
+            "kotlin.time.Duration" to { acc: String -> "kotlin.time.Duration.parse($acc)" },
+        )
 
     /**
      * Widening map for @BehaveCast: narrow type → (wider placeholder, wider Kotlin type, conversion expression).

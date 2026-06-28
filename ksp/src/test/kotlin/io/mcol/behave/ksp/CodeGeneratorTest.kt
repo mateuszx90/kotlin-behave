@@ -374,4 +374,54 @@ class CodeGeneratorTest {
     fun `replaceNumberLiterals does not match hyphenated word before number`() {
         assertEquals("re-enter {int} items", CodeGenerator.replaceNumberLiterals("re-enter 5 items"))
     }
+
+    // region @Type built-in conversions --------------------------------------
+
+    private fun ifaceWithConversion(targetType: String) = CodeGenerator.GeneratedInterface(
+        packageName = "com.example",
+        interfaceName = "TypeStepsSpec",
+        implementingClassName = "TypeSteps",
+        featurePath = "features/type.feature",
+        generateTest = false,
+        hasScenarioRunner = false,
+        hasBeforeScenario = false,
+        hasAfterScenario = false,
+        steps = listOf(
+            CodeGenerator.GeneratedStep(
+                methodName = "theValueIs",
+                params = listOf(CodeGenerator.StepParam("string", "String")),
+                stepExpression = "the value is {string}",
+                originalKeyword = "Given",
+                originalText = "the value is {string}",
+                typeConversions = mapOf(0 to targetType),
+            ),
+        ),
+        rowClasses = emptyList(),
+    )
+
+    @Test
+    fun `enum Type without a converter generates a case-insensitive valueOf`() {
+        val source = CodeGenerator.render(ifaceWithConversion("com.example.Color"))
+        assertTrue(
+            source.contains("com.example.Color.valueOf((params[0] as String).uppercase())"),
+            "Expected enum valueOf conversion, got:\n$source",
+        )
+    }
+
+    @Test
+    fun `Duration Type uses the built-in parse without a hand-written converter`() {
+        val source = CodeGenerator.render(ifaceWithConversion("kotlin.time.Duration"))
+        assertTrue(
+            source.contains("kotlin.time.Duration.parse((params[0] as String))"),
+            "Expected the Duration built-in parse, got:\n$source",
+        )
+        assertFalse(source.contains("Duration.valueOf"), "Duration must not fall through to enum valueOf")
+    }
+
+    @Test
+    fun `builtinScalarConversions exposes Duration`() {
+        assertTrue("kotlin.time.Duration" in CodeGenerator.builtinScalarConversions)
+    }
+
+    // endregion
 }
