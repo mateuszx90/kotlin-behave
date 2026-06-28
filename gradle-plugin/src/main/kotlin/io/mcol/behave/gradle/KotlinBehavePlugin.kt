@@ -50,15 +50,26 @@ class KotlinBehavePlugin : Plugin<Project> {
 
         project.tasks.withType(Test::class.java).configureEach { useJUnitPlatform() }
 
+        val lint = project.tasks.register("behaveLint", BehaveLintTask::class.java) {
+            group = "verification"
+            description = "Parses every .feature (failing on unparseable ones) and reports dead step definitions."
+            stepSources.from(
+                project.layout.projectDirectory.dir("src/test/kotlin"),
+                project.layout.projectDirectory.dir("src/commonTest/kotlin"),
+            )
+        }
+
         project.afterEvaluate {
-            val featureDir = extension.featureDir
+            val featureDirPath = extension.featureDir
             val ksp = project.extensions.getByType(KspExtension::class.java)
-            ksp.arg("behave.featureDir", featureDir)
+            ksp.arg("behave.featureDir", featureDirPath)
             ksp.arg("behave.projectDir", project.projectDir.absolutePath)
 
+            val featureDirectory = project.layout.projectDirectory.dir(featureDirPath)
             project.tasks.matching { it.name.startsWith("ksp") }.configureEach {
-                inputs.dir(project.layout.projectDirectory.dir(featureDir))
+                inputs.dir(featureDirectory)
             }
+            lint.configure { this.featureDir.set(featureDirectory) }
         }
     }
 
