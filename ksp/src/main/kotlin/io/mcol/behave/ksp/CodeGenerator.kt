@@ -65,6 +65,7 @@ internal object CodeGenerator {
         val implementingClassName: String, // e.g. "LoginSteps"
         val featurePath: String, // e.g. "features/login.feature"
         val generateTest: Boolean, // when false, skip val + test class generation
+        val retries: Int = 0, // @Retry(times): extra attempts for a failing scenario; 0 disables
         val hasScenarioRunner: Boolean, // when true, generate per-scenario runner variant
         val hasBeforeScenario: Boolean, // when true, register Before hook delegating to BeforeScenario
         val hasAfterScenario: Boolean, // when true, register After hook delegating to AfterScenario
@@ -225,13 +226,14 @@ internal object CodeGenerator {
         // Generated Kotest FreeSpec test class
         val testClassName = "${baseName}GherkinTest"
         val escapedPath = iface.featurePath.replace("\"", "\\\"")
+        val retriesArg = if (iface.retries > 0) ", retries = ${iface.retries}" else ""
         out.appendLine("class $testClassName : FreeSpec({")
         if (iface.hasScenarioRunner) {
-            out.appendLine("    gherkin(\"$escapedPath\", $stepsVarName) { ctx, run ->")
+            out.appendLine("    gherkin(\"$escapedPath\", $stepsVarName$retriesArg) { ctx, run ->")
             out.appendLine("        (ctx as ScenarioRunner).runScenario(ctx, run)")
             out.appendLine("    }")
         } else {
-            out.appendLine("    gherkin(\"$escapedPath\", $stepsVarName)")
+            out.appendLine("    gherkin(\"$escapedPath\", $stepsVarName$retriesArg)")
         }
         out.appendLine("})")
         return out.toString()

@@ -30,12 +30,24 @@ data class RunResult(
 class GherkinRunner<C>(
     private val stepDefinitions: StepDefinitions<C>,
     private val tags: String? = null,
+    private val retries: Int = 0,
 ) {
 
     private val tagFilter: TagFilter? by lazy {
         val expr = tags ?: getSystemProperty("behave.tags")
         expr?.takeIf { it.isNotBlank() }?.let { parseTagFilter(it) }
     }
+
+    /**
+     * Number of *extra* attempts a scenario gets. Honors the [retries] passed in, and bumps it to
+     * at least [FLAKY_DEFAULT_RETRIES] for scenarios tagged `@flaky` / `@retry`.
+     */
+    private fun retryBudget(scenarioTags: Set<String>): Int {
+        val isFlaky = scenarioTags.any { it == "@flaky" || it == "@retry" }
+        return if (isFlaky) maxOf(retries, FLAKY_DEFAULT_RETRIES) else retries
+    }
+
+    private fun ScenarioResult.isRetryable(): Boolean = !passed && !pending && !skipped
 
     suspend fun run(feature: Feature): RunResult {
         val results = feature.scenarios.map { scenario ->
@@ -45,8 +57,15 @@ class GherkinRunner<C>(
                 runAfterHooksForSkipped(info)
                 ScenarioResult(scenario.name, passed = false, skipped = true)
             } else {
-                stepDefinitions.stepBuilder.ctx = stepDefinitions.factory()
-                executeScenario(feature, scenario)
+                val budget = retryBudget(scenario.tags)
+                var result: ScenarioResult
+                var attempt = 0
+                do {
+                    stepDefinitions.stepBuilder.ctx = stepDefinitions.factory()
+                    result = executeScenario(feature, scenario)
+                    attempt++
+                } while (result.isRetryable() && attempt <= budget)
+                result
             }
         }
         printResults(feature.name, results)
@@ -64,11 +83,17 @@ class GherkinRunner<C>(
                 // an uninitialised ctx.
                 ScenarioResult(scenario.name, passed = false, skipped = true)
             } else {
-                val ctx = stepDefinitions.factory()
-                stepDefinitions.stepBuilder.ctx = ctx
-                var result = ScenarioResult(scenario.name, passed = true)
-                val run: suspend () -> Unit = { result = executeScenario(feature, scenario) }
-                runScenario(ctx, run)
+                val budget = retryBudget(scenario.tags)
+                var result: ScenarioResult
+                var attempt = 0
+                do {
+                    val ctx = stepDefinitions.factory()
+                    stepDefinitions.stepBuilder.ctx = ctx
+                    result = ScenarioResult(scenario.name, passed = true)
+                    val run: suspend () -> Unit = { result = executeScenario(feature, scenario) }
+                    runScenario(ctx, run)
+                    attempt++
+                } while (result.isRetryable() && attempt <= budget)
                 result
             }
         }
@@ -208,5 +233,10 @@ class GherkinRunner<C>(
         val pending = results.count { it.pending }
         val skipped = results.count { it.skipped }
         println("\n$passed passed, $failed failed, $pending pending, $skipped skipped\n")
+    }
+
+    companion object {
+        /** Extra attempts granted to a scenario tagged `@flaky` / `@retry` when no count is set. */
+        const val FLAKY_DEFAULT_RETRIES: Int = 1
     }
 }

@@ -21,6 +21,31 @@ annotation class BehaveFeature(
 )
 
 /**
+ * Re-runs a failing scenario up to [times] additional attempts before reporting it as failed.
+ * Apply to a `*Steps` class; the generated `*GherkinTest` passes the count to the runner.
+ *
+ * A fresh scenario context (and Before/After hooks) is created for every attempt — the
+ * scenario passes as soon as one attempt succeeds. Pending and tag-skipped scenarios are
+ * never retried.
+ *
+ * Beyond this annotation, tagging a scenario `@flaky` or `@retry` in the feature file gives it
+ * a default retry budget even when the class is not annotated.
+ *
+ * ```kotlin
+ * @Retry(times = 2)
+ * @BehaveFeature("features/flaky.feature")
+ * class FlakySteps : FlakyStepsSpec { /* ... */ }
+ * ```
+ *
+ * @param times Maximum number of *extra* attempts (a value of 2 means up to 3 runs total).
+ */
+@Target(AnnotationTarget.CLASS)
+@Retention(AnnotationRetention.SOURCE)
+annotation class Retry(
+    val times: Int = 1,
+)
+
+/**
  * Configures type mapping for placeholders or DataTable columns in steps.
  *
  * Three modes:
