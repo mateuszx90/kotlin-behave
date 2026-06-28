@@ -10,6 +10,7 @@ import io.mcol.behave.steps.ScenarioStatus
 import io.mcol.behave.steps.StepDefinitions
 import io.mcol.behave.steps.StepHook
 import io.mcol.behave.steps.StepInfo
+import kotlinx.coroutines.withTimeout
 
 data class ScenarioResult(
     val name: String,
@@ -31,6 +32,7 @@ class GherkinRunner<C>(
     private val stepDefinitions: StepDefinitions<C>,
     private val tags: String? = null,
     private val retries: Int = 0,
+    private val stepTimeoutMillis: Long = 0,
 ) {
 
     private val tagFilter: TagFilter? by lazy {
@@ -144,7 +146,7 @@ class GherkinRunner<C>(
                     val ctx = stepDefinitions.stepBuilder.ctx
                     try {
                         runBeforeStepHooks(stepInfo, ctx)
-                        it()
+                        runStep(it)
                     } catch (e: PendingException) {
                         isPending = true
                         failedStep = step.text
@@ -201,6 +203,15 @@ class GherkinRunner<C>(
         when (hook) {
             is StepHook.WithCtx -> hook.block(ctx)
             is StepHook.WithStepAndCtx -> hook.block(info, ctx)
+        }
+    }
+
+    /** Runs a single step, enforcing the per-step timeout when one is configured (> 0). */
+    private suspend fun runStep(step: suspend () -> Unit) {
+        if (stepTimeoutMillis > 0) {
+            withTimeout(stepTimeoutMillis) { step() }
+        } else {
+            step()
         }
     }
 
