@@ -40,6 +40,7 @@ fun <C> FreeSpec.gherkin(
     path: String,
     steps: StepDefinitions<C>,
     tags: String? = null,
+    retries: Int = 0,
     runScenario: suspend (ctx: C, run: suspend () -> Unit) -> Unit,
 ) {
     val feature = loadFeature(path)
@@ -49,7 +50,7 @@ fun <C> FreeSpec.gherkin(
         for (scenario in feature.scenarios) {
             "Scenario: ${scenario.name}" {
                 val singleScenario = feature.copy(scenarios = listOf(scenario))
-                val result = GherkinRunner(steps, tags).runWithPerScenarioRunner(singleScenario, runScenario)
+                val result = GherkinRunner(steps, tags, retries).runWithPerScenarioRunner(singleScenario, runScenario)
                 if (result.hasFailures) {
                     val failed = result.scenarios.first { !it.passed && !it.pending && !it.skipped }
                     throw failed.error ?: AssertionError("Scenario '${failed.name}' failed at step: ${failed.failedStep}")
@@ -89,6 +90,7 @@ fun <C> FreeSpec.gherkin(
     steps: StepDefinitions<C>,
     tags: String? = null,
     scenarioAsTest: Boolean = true,
+    retries: Int = 0,
 ) {
     val feature = loadFeature(path)
     beforeSpec { steps.stepBuilder.beforeAllHooks.forEach { it() } }
@@ -99,7 +101,7 @@ fun <C> FreeSpec.gherkin(
             for (scenario in feature.scenarios) {
                 "Scenario: ${scenario.name}" {
                     val singleScenario = feature.copy(scenarios = listOf(scenario))
-                    val result = GherkinRunner(steps, tags).run(singleScenario)
+                    val result = GherkinRunner(steps, tags, retries).run(singleScenario)
                     if (result.hasFailures) {
                         val failed = result.scenarios.first { !it.passed && !it.pending && !it.skipped }
                         throw failed.error ?: AssertionError("Scenario '${failed.name}' failed at step: ${failed.failedStep}")

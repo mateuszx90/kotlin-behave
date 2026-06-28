@@ -304,6 +304,13 @@ class BehaveProcessor(
             .firstOrNull { it.name?.asString() == "generateTest" }
             ?.value as? Boolean ?: true
 
+        // Read @Retry(times) — extra attempts for a failing scenario; absent → 0 (disabled).
+        val retries = classDecl.annotations
+            .firstOrNull { it.shortName.asString() == "Retry" }
+            ?.arguments
+            ?.firstOrNull { it.name?.asString() == "times" }
+            ?.value as? Int ?: 0
+
         // Check which lifecycle interfaces the class implements
         val superTypeNames = classDecl.superTypes.map { ref ->
             ref.resolve().declaration.qualifiedName?.asString()
@@ -420,6 +427,7 @@ class BehaveProcessor(
             implementingClassName = className,
             featurePath = featurePath,
             generateTest = generateTest,
+            retries = retries,
             hasScenarioRunner = hasScenarioRunner,
             hasBeforeScenario = hasBeforeScenario,
             hasAfterScenario = hasAfterScenario,

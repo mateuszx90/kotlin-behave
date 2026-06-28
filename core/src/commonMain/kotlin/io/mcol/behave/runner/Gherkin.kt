@@ -22,9 +22,10 @@ suspend fun <C> gherkin(
     path: String,
     steps: StepDefinitions<C>,
     tags: String? = null,
+    retries: Int = 0,
 ) {
     val feature = loadFeature(path)
-    val result = GherkinRunner(steps, tags).run(feature)
+    val result = GherkinRunner(steps, tags, retries).run(feature)
     if (result.hasFailures) {
         val messages =
             result.scenarios
@@ -43,10 +44,11 @@ suspend fun <C> gherkin(
     path: String,
     steps: StepDefinitions<C>,
     tags: String? = null,
+    retries: Int = 0,
     runScenario: suspend (ctx: C, run: suspend () -> Unit) -> Unit,
 ) {
     val feature = loadFeature(path)
-    val result = GherkinRunner(steps, tags).runWithPerScenarioRunner(feature, runScenario)
+    val result = GherkinRunner(steps, tags, retries).runWithPerScenarioRunner(feature, runScenario)
     if (result.hasFailures) {
         val messages =
             result.scenarios
