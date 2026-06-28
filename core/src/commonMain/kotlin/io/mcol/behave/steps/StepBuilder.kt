@@ -1,11 +1,20 @@
 package io.mcol.behave.steps
 
+import io.mcol.behave.runner.TagFilter
+import io.mcol.behave.runner.matches
+import io.mcol.behave.runner.parseTagFilter
 import io.mcol.behave.types.Params
 import io.mcol.behave.types.TypeRegistry
 
 sealed interface Hook<C> {
-    class WithCtx<C>(val block: suspend (C) -> Unit) : Hook<C>
-    class WithScenarioAndCtx<C>(val block: suspend (ScenarioInfo, C) -> Unit) : Hook<C>
+    /** When non-null, the hook only fires for scenarios whose tags satisfy this expression. */
+    val tagFilter: TagFilter?
+
+    /** True when this hook should fire for a scenario carrying [tags] (untagged hooks always do). */
+    fun appliesTo(tags: Set<String>): Boolean = tagFilter?.matches(tags) ?: true
+
+    class WithCtx<C>(override val tagFilter: TagFilter?, val block: suspend (C) -> Unit) : Hook<C>
+    class WithScenarioAndCtx<C>(override val tagFilter: TagFilter?, val block: suspend (ScenarioInfo, C) -> Unit) : Hook<C>
 }
 
 /** The step a Before/AfterStep hook is firing around. */
@@ -34,18 +43,34 @@ class StepBuilder<C>(val factory: () -> C) {
 
     // Before overloads — `Before { }` resolves to the ctx overload with ignored parameter
     fun Before(fn: suspend (C) -> Unit) {
-        beforeHooks.add(Hook.WithCtx(fn))
+        beforeHooks.add(Hook.WithCtx(null, fn))
     }
     fun Before(fn: suspend (ScenarioInfo, C) -> Unit) {
-        beforeHooks.add(Hook.WithScenarioAndCtx(fn))
+        beforeHooks.add(Hook.WithScenarioAndCtx(null, fn))
+    }
+
+    // Tagged Before — only runs for scenarios matching the tag expression, e.g. Before("@db") { ... }
+    fun Before(tagExpression: String, fn: suspend (C) -> Unit) {
+        beforeHooks.add(Hook.WithCtx(parseTagFilter(tagExpression), fn))
+    }
+    fun Before(tagExpression: String, fn: suspend (ScenarioInfo, C) -> Unit) {
+        beforeHooks.add(Hook.WithScenarioAndCtx(parseTagFilter(tagExpression), fn))
     }
 
     // After overloads
     fun After(fn: suspend (C) -> Unit) {
-        afterHooks.add(Hook.WithCtx(fn))
+        afterHooks.add(Hook.WithCtx(null, fn))
     }
     fun After(fn: suspend (ScenarioInfo, C) -> Unit) {
-        afterHooks.add(Hook.WithScenarioAndCtx(fn))
+        afterHooks.add(Hook.WithScenarioAndCtx(null, fn))
+    }
+
+    // Tagged After — only runs for scenarios matching the tag expression, e.g. After("@db") { ... }
+    fun After(tagExpression: String, fn: suspend (C) -> Unit) {
+        afterHooks.add(Hook.WithCtx(parseTagFilter(tagExpression), fn))
+    }
+    fun After(tagExpression: String, fn: suspend (ScenarioInfo, C) -> Unit) {
+        afterHooks.add(Hook.WithScenarioAndCtx(parseTagFilter(tagExpression), fn))
     }
 
     // Suite-level — run once before the first / after the last scenario of the feature.
