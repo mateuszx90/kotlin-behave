@@ -23,6 +23,8 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(project(":gherkin"))
+            // withTimeout for the per-step timeout in GherkinRunner.
+            implementation(libs.kotlinx.coroutines.core)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))

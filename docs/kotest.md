@@ -157,3 +157,42 @@ interface ScenarioHooks  : BeforeScenario, AfterScenario   // implement both, de
 status). For a reusable per-scenario harness across many features, implement `ScenarioRunner`
 and delegate (e.g. `ScenarioRunner by ComposeScenarioRunner()`). See the
 [Core API hooks](core.md#hooks) for the builder-level equivalents and step-level hooks.
+
+## Per-step timeout
+
+`gherkin(...)` takes a `stepTimeoutMillis` that bounds **each individual step** (Background and
+scenario steps alike). A step that runs longer fails the scenario with a `TimeoutCancellationException`
+— useful for catching a hung network call or an element that never appears. `0` (the default)
+disables it. This is independent of the scenario-level timeout, which you wrap yourself with
+`withTimeout`/`withScenarioTimeout` inside a per-scenario runner.
+
+```kotlin
+class CheckoutGherkinTest : FreeSpec({
+    // every step must finish within 5s
+    gherkin("features/checkout.feature", checkoutSteps, stepTimeoutMillis = 5_000)
+})
+```
+
+The same parameter is available on the per-scenario-runner overload and on the core
+`io.mcol.behave.runner.gherkin(...)` entry point (and directly on `GherkinRunner`).
+
+## Parallel scenario execution
+
+Scenario leaves are ordinary Kotest tests, so you parallelize them with Kotest's own
+concurrency configuration rather than a kotlin-behave-specific switch. Enable concurrent test
+execution in your `ProjectConfig`:
+
+```kotlin
+import io.kotest.core.config.AbstractProjectConfig
+
+class KotestConfig : AbstractProjectConfig() {
+    override val parallelism = Runtime.getRuntime().availableProcessors()
+    override val concurrentTests = 8 // run up to 8 scenario leaves at once
+}
+```
+
+> **Caveat — shared context.** A generated `val …Steps` is a single `StepDefinitions` instance
+> whose `ctx` is reset per scenario. Running scenarios of the **same** feature concurrently would
+> race on that shared `ctx`. Parallelize at the **spec/feature** level (the default unit of
+> Kotest `parallelism`), or, when you need per-scenario isolation, use the per-scenario-runner
+> overload so each scenario builds and tears down its own environment.
