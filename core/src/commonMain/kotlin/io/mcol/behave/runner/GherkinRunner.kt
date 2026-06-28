@@ -103,6 +103,7 @@ class GherkinRunner<C>(
 
     private suspend fun runAfterHooksForSkipped(info: ScenarioInfo) {
         for (hook in stepDefinitions.stepBuilder.afterHooks.asReversed()) {
+            if (!hook.appliesTo(info.tags)) continue
             try {
                 dispatchHook(hook, info, stepDefinitions.stepBuilder.ctx)
             } catch (_: Throwable) { }
@@ -120,6 +121,7 @@ class GherkinRunner<C>(
 
         for (hook in beforeHooks) {
             if (stepError != null) break
+            if (!hook.appliesTo(scenario.tags)) continue
             try {
                 dispatchHook(hook, scenarioInfoBefore, stepDefinitions.stepBuilder.ctx)
             } catch (e: Throwable) {
@@ -170,6 +172,7 @@ class GherkinRunner<C>(
         val scenarioInfoAfter = ScenarioInfo(scenario.name, scenario.tags, finalStatus)
 
         for (hook in afterHooks.asReversed()) {
+            if (!hook.appliesTo(scenario.tags)) continue
             try {
                 dispatchHook(hook, scenarioInfoAfter, stepDefinitions.stepBuilder.ctx)
             } catch (e: Throwable) {

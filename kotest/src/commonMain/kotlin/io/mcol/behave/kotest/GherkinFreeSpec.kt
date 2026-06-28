@@ -121,7 +121,9 @@ fun <C> FreeSpec.gherkin(
                 val scenarioTags = feature.scenarios.firstOrNull { it.name == scenarioName }?.tags ?: emptySet()
                 val info = ScenarioInfo(scenarioName, scenarioTags, ScenarioStatus.Passed)
                 steps.stepBuilder.ctx = steps.factory()
-                steps.stepBuilder.beforeHooks.forEach { hook -> dispatchHook(hook, info, steps.stepBuilder.ctx) }
+                steps.stepBuilder.beforeHooks
+                    .filter { it.appliesTo(scenarioTags) }
+                    .forEach { hook -> dispatchHook(hook, info, steps.stepBuilder.ctx) }
             }
         }
         afterContainer { (testCase, result) ->
@@ -130,9 +132,9 @@ fun <C> FreeSpec.gherkin(
                 val scenarioTags = feature.scenarios.firstOrNull { it.name == scenarioName }?.tags ?: emptySet()
                 val status = if (result.isSuccess) ScenarioStatus.Passed else ScenarioStatus.Failed
                 val info = ScenarioInfo(scenarioName, scenarioTags, status)
-                steps.stepBuilder.afterHooks.asReversed().forEach { hook ->
-                    runCatching { dispatchHook(hook, info, steps.stepBuilder.ctx) }
-                }
+                steps.stepBuilder.afterHooks.asReversed()
+                    .filter { it.appliesTo(scenarioTags) }
+                    .forEach { hook -> runCatching { dispatchHook(hook, info, steps.stepBuilder.ctx) } }
             }
         }
 
