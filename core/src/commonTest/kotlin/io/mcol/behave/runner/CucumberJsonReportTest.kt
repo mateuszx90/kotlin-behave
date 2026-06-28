@@ -77,7 +77,7 @@ class CucumberJsonReportTest {
     }
 
     @Test
-    fun `step after the failing one is skipped, step before is passed`() {
+    fun `step after the failing one is skipped and step before is passed`() {
         // For "fails": background(passed) -> "I click"(passed) -> "it works"(failed).
         assertContains(json, "\"name\":\"it works\",\"line\":")
         assertContains(json, "\"status\":\"pending\"") // the "pends" scenario
