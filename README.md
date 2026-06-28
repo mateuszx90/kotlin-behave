@@ -64,7 +64,33 @@ both work. See [KSP Code Generation](docs/ksp.md#type--typeconverter) for `@Type
 
 ## Setup
 
-Full setup — `:core` + `:kotest` + `:annotations` + `:ksp` for compile-time-safe steps:
+### One-line setup — the convention plugin
+
+The `io.mcol.kotlin-behave` Gradle plugin wires everything below for you. Apply it and you
+are done:
+
+```kotlin
+// build.gradle.kts
+plugins {
+    id("io.mcol.kotlin-behave")
+}
+```
+
+It applies the Kotlin JVM and KSP plugins, adds the `:core` / `:kotest` / `:annotations` /
+`:ksp` artifacts plus the kotest engine + JUnit5 runner, sets the `behave.featureDir` /
+`behave.projectDir` KSP args, and switches the test task to the JUnit Platform. Override the
+feature directory through the `behave` extension:
+
+```kotlin
+behave {
+    featureDir = "src/test/resources" // default
+}
+```
+
+### Manual setup
+
+Prefer to wire it by hand — `:core` + `:kotest` + `:annotations` + `:ksp` for
+compile-time-safe steps:
 
 ```kotlin
 // build.gradle.kts
