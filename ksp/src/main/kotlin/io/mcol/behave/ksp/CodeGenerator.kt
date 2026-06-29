@@ -336,8 +336,12 @@ internal object CodeGenerator {
                         // Built-in type (e.g. kotlin.time.Duration) — no hand-written @TypeConverter needed.
                         out.appendLine("        val p${i + 1} = ${builtin("(params[$i] as String)")}")
                     } else {
-                        // Otherwise assume an enum and convert case-insensitively via valueOf().
-                        out.appendLine("        val p${i + 1} = $conversion.valueOf((params[$i] as String).uppercase())")
+                        // Otherwise an enum: resolve case-insensitively via the shared validator so a
+                        // bad value throws the same friendly message the KSP processor predicts.
+                        val enumSimple = conversion.substringAfterLast('.')
+                        out.appendLine(
+                            "        val p${i + 1} = io.mcol.behave.types.ValueValidation.toEnum(params[$i] as String, $conversion.values(), \"$enumSimple\")",
+                        )
                     }
                 } else {
                     out.appendLine("        val p${i + 1} = params[$i] as $destructType")
@@ -475,7 +479,7 @@ internal object CodeGenerator {
      */
     internal val builtinScalarConversions: Map<String, (String) -> String> =
         mapOf(
-            "kotlin.time.Duration" to { acc: String -> "kotlin.time.Duration.parse($acc)" },
+            "kotlin.time.Duration" to { acc: String -> "io.mcol.behave.types.ValueValidation.toDuration($acc)" },
         )
 
     /**
