@@ -414,6 +414,9 @@ class BehaveProcessor(
         // usage fails at runtime (params.dataTable!! NPE, or a dropped table).
         dataTableConflictErrors(templatesByNormKey).forEach { logger.error(it, classDecl) }
 
+        // A @TypeConverter that reads more captured params than the step provides → runtime IOOBE.
+        converterArityErrors(generatedSteps).forEach { logger.error(it, classDecl) }
+
         val rowClasses = buildRowClasses(generatedSteps, parsed.steps)
 
         // Match each generated step against the mixin registry. A step whose
@@ -851,6 +854,29 @@ private fun collectEnumConstants(classDecl: KSClassDeclaration): Map<String, Set
         .filter { it.classKind == ClassKind.INTERFACE && it.annotations.any { a -> a.shortName.asString() == "StepsMixin" } }
         .forEach { it.getDeclaredFunctions().forEach(::scan) }
     return result
+}
+
+/**
+ * Detects a `@TypeConverter` that reads more captured parameters than its step provides. The
+ * generated call reads `params[idx + paramCount - 1]`; when that index is past the step's
+ * placeholder count it throws IndexOutOfBounds at runtime (and compiles silently whenever the
+ * surplus parameters are String-typed). Returns one diagnostic per offending converter.
+ */
+private fun converterArityErrors(
+    generatedSteps: List<io.mcol.behave.ksp.CodeGenerator.GeneratedStep>,
+): List<String> = generatedSteps.flatMap { step ->
+    val placeholderCount = TypeValidator.extractPlaceholderTypes(step.stepExpression).size
+    step.typeConverters.mapNotNull { (idx, converter) ->
+        if (idx + converter.paramCount <= placeholderCount) {
+            null
+        } else {
+            "@TypeConverter '${converter.functionName}' for step '${step.originalKeyword} ${step.originalText}' " +
+                "reads ${converter.paramCount} parameter(s) starting at position ${idx + 1}, but the step " +
+                "captures only $placeholderCount value(s). The generated call reads " +
+                "params[${idx + converter.paramCount - 1}] and will throw IndexOutOfBounds at runtime. " +
+                "Match the converter's parameters to the step's placeholders."
+        }
+    }
 }
 
 /**
