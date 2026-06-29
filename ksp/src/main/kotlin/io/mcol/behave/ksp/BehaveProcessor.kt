@@ -410,6 +410,10 @@ class BehaveProcessor(
         val enumConstants = collectEnumConstants(classDecl)
         validateTypes(generatedSteps, parsed.allStepInstances, classDecl, behaveCasts, enumConstants)
 
+        // A step seen both with and without a | table | generates one binding shape; the other
+        // usage fails at runtime (params.dataTable!! NPE, or a dropped table).
+        dataTableConflictErrors(templatesByNormKey).forEach { logger.error(it, classDecl) }
+
         val rowClasses = buildRowClasses(generatedSteps, parsed.steps)
 
         // Match each generated step against the mixin registry. A step whose
@@ -847,6 +851,26 @@ private fun collectEnumConstants(classDecl: KSClassDeclaration): Map<String, Set
         .filter { it.classKind == ClassKind.INTERFACE && it.annotations.any { a -> a.shortName.asString() == "StepsMixin" } }
         .forEach { it.getDeclaredFunctions().forEach(::scan) }
     return result
+}
+
+/**
+ * Detects a step whose DataTable usage is inconsistent across the feature: the same step text
+ * appears both with and without a `| table |`. The generated binding has a single shape, so the
+ * other usage fails at runtime — `params.dataTable!!` NPEs when the table is absent, or an
+ * unexpected table is silently dropped. Returns one diagnostic per conflicting step.
+ */
+private fun dataTableConflictErrors(
+    templatesByNormKey: Map<String, List<FeatureFileParser.ParsedStep>>,
+): List<String> = templatesByNormKey.values.mapNotNull { group ->
+    if (group.map { it.hasDataTable }.distinct().size < 2) {
+        null
+    } else {
+        val sample = group.first()
+        "Inconsistent DataTable usage for step '${sample.keyword} ${sample.text}': it appears both " +
+            "with and without a | table |. The generated binding reads params.dataTable!! and will fail " +
+            "at runtime where the table is missing. Make the table present (or absent) in every scenario " +
+            "that uses this step."
+    }
 }
 
 /** Diagnostic for an enum literal that names no real constant; null when [value] is valid. */
