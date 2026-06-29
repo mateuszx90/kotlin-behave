@@ -902,6 +902,10 @@ private fun dataTableConflictErrors(
     }
 }
 
+// Per-value diagnostics. The RULE (and wording) lives in the shared io.mcol.behave.types.ValueValidation,
+// which the generated runtime conversions also use — so build-time and runtime can't disagree. These
+// wrappers add the scenario/step context the runtime can't know.
+
 /** Diagnostic for an enum literal that names no real constant; null when [value] is valid. */
 private fun enumMismatchError(
     value: String,
@@ -909,10 +913,9 @@ private fun enumMismatchError(
     constants: Set<String>,
     raw: FeatureFileParser.RawStep,
 ): String? {
-    if (value.uppercase() in constants) return null
-    return "Invalid enum value in scenario '${raw.scenarioName}': '$value' is not a constant of " +
-        "${enumType.substringAfterLast('.')} (expected one of ${constants.sorted().joinToString()}) " +
-        "in step '${raw.keyword} ${raw.text}'"
+    val problem = io.mcol.behave.types.ValueValidation.enumProblem(value, enumType.substringAfterLast('.'), constants)
+        ?: return null
+    return "Invalid enum value in scenario '${raw.scenarioName}': $problem in step '${raw.keyword} ${raw.text}'"
 }
 
 /**
@@ -926,13 +929,8 @@ private fun builtinLiteralError(
     raw: FeatureFileParser.RawStep,
 ): String? {
     if (typeName != "kotlin.time.Duration") return null
-    return try {
-        kotlin.time.Duration.parse(value)
-        null
-    } catch (_: IllegalArgumentException) {
-        "Invalid Duration literal in scenario '${raw.scenarioName}': '$value' cannot be parsed by " +
-            "kotlin.time.Duration.parse (e.g. \"1500ms\", \"2s\", \"1.5h\") in step '${raw.keyword} ${raw.text}'"
-    }
+    val problem = io.mcol.behave.types.ValueValidation.durationProblem(value) ?: return null
+    return "Invalid Duration literal in scenario '${raw.scenarioName}': $problem in step '${raw.keyword} ${raw.text}'"
 }
 
 /** Diagnostic for a concrete value that doesn't match its built-in placeholder type; null when valid. */
@@ -948,11 +946,6 @@ private fun placeholderMismatchError(
     }
     // The regex accepts any run of digits, but the generated code parses {int}/{long} via
     // toInt()/toLong(), which overflow at runtime for values outside the Kotlin type's range.
-    val overflowType = when (expectedType) {
-        "int" -> if (value.toIntOrNull() == null) "Int" else null
-        "long" -> if (value.toLongOrNull() == null) "Long" else null
-        else -> null
-    } ?: return null
-    return "Numeric overflow in scenario '${raw.scenarioName}': value '$value' does not fit in " +
-        "$overflowType in step '${raw.keyword} ${raw.text}'"
+    val problem = io.mcol.behave.types.ValueValidation.numericRangeProblem(value, expectedType) ?: return null
+    return "Numeric overflow in scenario '${raw.scenarioName}': $problem in step '${raw.keyword} ${raw.text}'"
 }
