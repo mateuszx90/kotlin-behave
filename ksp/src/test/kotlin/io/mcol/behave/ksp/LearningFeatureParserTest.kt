@@ -148,7 +148,7 @@ class LearningFeatureParserTest {
 }
 
 /** Exposes package-private processor logic for testing. */
-enum class Kind { PLACEHOLDER, QUOTED, VARIABLE }
+enum class LearnKind { PLACEHOLDER, QUOTED, VARIABLE }
 
 internal object BehaveProcessorTestHelper {
     fun resolveInlineParams(
@@ -161,26 +161,26 @@ internal object BehaveProcessorTestHelper {
 
         data class Tok(
             val pos: Int,
-            val kind: Kind,
+            val kind: LearnKind,
             val name: String,
         )
 
         val toks =
             buildList {
                 Regex("\\{([^}]+)}").findAll(text).forEach {
-                    add(Tok(it.range.first, Kind.PLACEHOLDER, it.groupValues[1]))
+                    add(Tok(it.range.first, LearnKind.PLACEHOLDER, it.groupValues[1]))
                 }
                 Regex("\"([^\"]*)\"").findAll(text).forEach {
                     val inner = it.groupValues[1]
                     val varName = Regex("^<([^>]+)>$").find(inner)?.groupValues?.get(1)
-                    add(Tok(it.range.first, Kind.QUOTED, varName ?: "string"))
+                    add(Tok(it.range.first, LearnKind.QUOTED, varName ?: "string"))
                 }
                 Regex("<([^>]+)>").findAll(text).filter { !inQuotes(it.range.first) }.forEach {
-                    add(Tok(it.range.first, Kind.VARIABLE, it.groupValues[1]))
+                    add(Tok(it.range.first, LearnKind.VARIABLE, it.groupValues[1]))
                 }
             }.sortedBy { it.pos }
 
-        val placeholderNames = toks.filter { it.kind == Kind.PLACEHOLDER }.map { it.name }
+        val placeholderNames = toks.filter { it.kind == LearnKind.PLACEHOLDER }.map { it.name }
         val params = mutableListOf<CodeGenerator.StepParam>()
         val usedPlaceholders = mutableSetOf<String>()
 
@@ -200,10 +200,10 @@ internal object BehaveProcessorTestHelper {
         val nameCounters = mutableMapOf<String, Int>()
 
         for (tok in toks) {
-            if (tok.kind == Kind.PLACEHOLDER && tok.name in usedPlaceholders) continue
+            if (tok.kind == LearnKind.PLACEHOLDER && tok.name in usedPlaceholders) continue
             val (typeName, baseName) =
                 when (tok.kind) {
-                    Kind.PLACEHOLDER -> {
+                    LearnKind.PLACEHOLDER -> {
                         val custom = placeholderMappings.firstOrNull { it.placeholder == tok.name }
                         when {
                             custom != null -> custom.typeName to tok.name
@@ -211,8 +211,8 @@ internal object BehaveProcessorTestHelper {
                             else -> "String" to tok.name
                         }
                     }
-                    Kind.QUOTED -> "String" to tok.name
-                    Kind.VARIABLE -> "String" to tok.name
+                    LearnKind.QUOTED -> "String" to tok.name
+                    LearnKind.VARIABLE -> "String" to tok.name
                 }
             val idx = nameCounters.getOrDefault(baseName, 0)
             val totalWithBase = toks.count { it.name == baseName }
