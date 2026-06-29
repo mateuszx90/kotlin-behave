@@ -89,8 +89,8 @@ The KSP processor predicts, at build time, failures the runtime would otherwise 
 |---------|-------------------|-----------------------------------|
 | Value shape (`{int}`, `{double}`, …) | regex match (shared patterns) | yes — same patterns, so they agree |
 | Numeric overflow (`toInt`/`toLong`) | throws while converting | yes — range-checked |
-| Enum literal not a constant | `valueOf` throws | yes — validated against the enum's constants |
-| `Duration` literal unparseable | `Duration.parse` throws | yes — parsed at build time |
+| Enum literal not a constant | `ValueValidation.toEnum` throws the shared message | yes — same rule (`ValueValidation.enumProblem`) |
+| `Duration` literal unparseable | `ValueValidation.toDuration` throws the shared message | yes — same rule (`ValueValidation.durationProblem`) |
 | `@TypeConverter` arity mismatch | `IndexOutOfBounds` while converting | yes |
 | Inconsistent `DataTable` usage | `params.dataTable!!` NPE | yes |
 | Scenario Outline `<var>` with no column | substitutes a literal `<var>` | yes (parser error) |
@@ -98,3 +98,9 @@ The KSP processor predicts, at build time, failures the runtime would otherwise 
 
 Because the placeholder patterns are shared, a value the runtime can match is exactly a value the
 validator accepts — there is no class of input that passes one and fails the other on shape.
+
+The enum / `Duration` / numeric-range **rules** are shared too: `io.mcol.behave.types.ValueValidation`
+exposes a build-time predicate (used by the KSP processor) and a runtime conversion (called by the
+generated code) backed by the *same* logic and wording. So when a value escapes compile-time — a
+`.feature` edited after the build, or a dynamically-registered type — the runtime fails with the same
+friendly message the build would have produced, not a raw `valueOf` / `parse` exception.
