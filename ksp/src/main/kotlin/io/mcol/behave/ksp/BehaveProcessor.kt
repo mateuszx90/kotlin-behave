@@ -777,13 +777,16 @@ class BehaveProcessor(
                 val concreteValues = TypeValidator.extractConcreteValues(raw.text, genStep.originalText)
                 for ((i, value) in concreteValues.withIndex()) {
                     if (i in castIndices) continue // @BehaveCast suppresses validation
-                    val enumType = genStep.typeConversions[i]
-                    val enumConsts = enumType?.let { enumConstants[it] }
+                    val convType = genStep.typeConversions[i]
+                    val enumConsts = convType?.let { enumConstants[it] }
                     when {
                         // Enum params: the generated code calls Enum.valueOf(value.uppercase()),
                         // which throws at runtime for an unknown constant. Reject it at compile time.
                         enumConsts != null ->
-                            enumMismatchError(value, enumType, enumConsts, raw)?.let { logger.error(it, classDecl) }
+                            enumMismatchError(value, convType, enumConsts, raw)?.let { logger.error(it, classDecl) }
+                        // Built-in scalar @Type (e.g. Duration) parsed via X.parse — validate the literal.
+                        convType != null ->
+                            builtinLiteralError(value, convType, raw)?.let { logger.error(it, classDecl) }
                         i < placeholderTypes.size ->
                             placeholderMismatchError(value, placeholderTypes[i], raw)?.let { logger.error(it, classDecl) }
                     }
@@ -910,6 +913,26 @@ private fun enumMismatchError(
     return "Invalid enum value in scenario '${raw.scenarioName}': '$value' is not a constant of " +
         "${enumType.substringAfterLast('.')} (expected one of ${constants.sorted().joinToString()}) " +
         "in step '${raw.keyword} ${raw.text}'"
+}
+
+/**
+ * Diagnostic for a built-in scalar `@Type` literal that its generated `parse(...)` call can't
+ * accept; null when valid or when [typeName] isn't a known built-in scalar. Currently covers
+ * `kotlin.time.Duration`, mirroring [io.mcol.behave.ksp.CodeGenerator.builtinScalarConversions].
+ */
+private fun builtinLiteralError(
+    value: String,
+    typeName: String,
+    raw: FeatureFileParser.RawStep,
+): String? {
+    if (typeName != "kotlin.time.Duration") return null
+    return try {
+        kotlin.time.Duration.parse(value)
+        null
+    } catch (_: IllegalArgumentException) {
+        "Invalid Duration literal in scenario '${raw.scenarioName}': '$value' cannot be parsed by " +
+            "kotlin.time.Duration.parse (e.g. \"1500ms\", \"2s\", \"1.5h\") in step '${raw.keyword} ${raw.text}'"
+    }
 }
 
 /** Diagnostic for a concrete value that doesn't match its built-in placeholder type; null when valid. */
