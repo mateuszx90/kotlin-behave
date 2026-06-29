@@ -21,6 +21,23 @@ public object GherkinTypes {
             "boolean" to "Boolean",
         )
 
+    /**
+     * Built-in placeholder name → the regex that matches its VALUE. Single source of truth for both
+     * the runtime step matcher (`TypeRegistry` in :core) and the KSP value validator (`TypeValidator`
+     * in :ksp), so the two can never drift. Scalar types only — `string` is context-dependent (the
+     * runtime matches the quoted token `"..."`, the validator the already-unquoted value), so each
+     * side owns its own `string` rule.
+     */
+    public val builtinValuePatterns: Map<String, String> =
+        mapOf(
+            "int" to """-?\d+""",
+            "long" to """-?\d+""",
+            "float" to """-?\d+\.?\d*""",
+            "double" to """-?\d+\.?\d*""",
+            "boolean" to """true|false""",
+            "word" to """\S+""",
+        )
+
     /** Kotlin type name → canonical builtin placeholder (e.g. "Int" -> "int"). Inverse of [placeholderToKotlin]. */
     public val kotlinToPlaceholder: Map<String, String> =
         mapOf(

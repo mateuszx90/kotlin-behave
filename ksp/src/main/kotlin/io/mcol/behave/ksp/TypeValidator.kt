@@ -7,16 +7,12 @@ package io.mcol.behave.ksp
  * then validates those values match the expected type patterns.
  */
 internal object TypeValidator {
-    val typeValidationPatterns =
-        mapOf(
-            "int" to Regex("-?\\d+"),
-            "double" to Regex("-?\\d+\\.\\d+"),
-            "boolean" to Regex("true|false"),
-            "long" to Regex("-?\\d+"),
-            "float" to Regex("-?\\d+\\.?\\d*"),
-            "string" to Regex(".*"), // extracted value has quotes already stripped by capture group
-            "word" to Regex("\\S+"),
-        )
+    // Scalar patterns come from the shared source of truth so the validator can never drift from the
+    // runtime step matcher (TypeRegistry). `string` is validator-specific: the value reaching here has
+    // already had its surrounding quotes stripped by the capture group, so it matches anything.
+    val typeValidationPatterns: Map<String, Regex> =
+        io.mcol.behave.gherkin.GherkinTypes.builtinValuePatterns.mapValues { Regex(it.value) } +
+            ("string" to Regex(".*"))
 
     /**
      * Extract concrete values from [rawText] by building a regex from [templateText].

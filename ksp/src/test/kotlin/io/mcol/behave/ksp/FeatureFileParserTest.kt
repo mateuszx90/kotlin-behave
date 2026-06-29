@@ -458,7 +458,9 @@ class FeatureFileParserTest {
         assertTrue(patterns["int"]!!.matches("-3"))
         assertFalse(patterns["int"]!!.matches("5.5"))
         assertTrue(patterns["double"]!!.matches("5.5"))
-        assertFalse(patterns["double"]!!.matches("4"))
+        // Runtime {double} pattern is -?\d+\.?\d*, so a bare integer IS a valid double — the
+        // validator must agree (it previously used the stricter -?\d+\.\d+, drifting from runtime).
+        assertTrue(patterns["double"]!!.matches("4"))
         assertTrue(patterns["boolean"]!!.matches("true"))
         assertFalse(patterns["boolean"]!!.matches("True"))
     }

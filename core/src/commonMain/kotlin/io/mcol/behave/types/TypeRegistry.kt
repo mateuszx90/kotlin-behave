@@ -21,15 +21,19 @@ class TypeRegistry {
         val convert: (Map<String, String?>) -> Any,
     )
 
+    private fun scalarPattern(name: String): String = io.mcol.behave.gherkin.GherkinTypes.builtinValuePatterns.getValue(name)
+
+    // Scalar value regexes are shared with the KSP validator via GherkinTypes so the two never drift.
+    // {string} owns its pattern here because the runtime matches the quoted token, not the bare value.
     private val builtins =
         listOf(
-            PlaceholderDef("{int}", "{int}", """-?\d+""", { it.toInt() }),
-            PlaceholderDef("{long}", "{long}", """-?\d+""", { it.toLong() }),
-            PlaceholderDef("{float}", "{float}", """-?\d+\.?\d*""", { it.toFloat() }),
-            PlaceholderDef("{double}", "{double}", """-?\d+\.?\d*""", { it.toDouble() }),
+            PlaceholderDef("{int}", "{int}", scalarPattern("int"), { it.toInt() }),
+            PlaceholderDef("{long}", "{long}", scalarPattern("long"), { it.toLong() }),
+            PlaceholderDef("{float}", "{float}", scalarPattern("float"), { it.toFloat() }),
+            PlaceholderDef("{double}", "{double}", scalarPattern("double"), { it.toDouble() }),
             PlaceholderDef("{string}", "{string}", """"[^"]*"""", { it.removeSurrounding("\"") }),
-            PlaceholderDef("{word}", "{word}", """\S+""", { it }),
-            PlaceholderDef("{boolean}", "{boolean}", """true|false""", { it.toBooleanStrict() }),
+            PlaceholderDef("{word}", "{word}", scalarPattern("word"), { it }),
+            PlaceholderDef("{boolean}", "{boolean}", scalarPattern("boolean"), { it.toBooleanStrict() }),
         )
 
     private val customScalar = mutableListOf<PlaceholderDef>()
