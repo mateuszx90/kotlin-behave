@@ -406,8 +406,9 @@ class BehaveProcessor(
             buildGeneratedStep(step, methodNames[i], buildContext)
         }
 
-        // Validate concrete values against declared placeholder types
-        validateTypes(generatedSteps, parsed.allStepInstances, classDecl, behaveCasts)
+        // Validate concrete values against declared placeholder types (and enum constants)
+        val enumConstants = collectEnumConstants(classDecl)
+        validateTypes(generatedSteps, parsed.allStepInstances, classDecl, behaveCasts, enumConstants)
 
         val rowClasses = buildRowClasses(generatedSteps, parsed.steps)
 
@@ -748,12 +749,15 @@ class BehaveProcessor(
         allRawSteps: List<FeatureFileParser.RawStep>,
         classDecl: KSClassDeclaration,
         behaveCasts: Map<String, Set<Int>> = emptyMap(),
+        enumConstants: Map<String, Set<String>> = emptyMap(),
     ) {
         if (allRawSteps.isEmpty()) return
 
         for (genStep in generatedSteps) {
             val placeholderTypes = TypeValidator.extractPlaceholderTypes(genStep.stepExpression)
-            if (placeholderTypes.isEmpty()) continue
+            // Enum conversions ride on {string} placeholders, so a step may have enum params even
+            // when no built-in {int}/{double}/… placeholder is present — don't skip on that alone.
+            if (placeholderTypes.isEmpty() && genStep.typeConversions.isEmpty()) continue
 
             val castIndices = behaveCasts[genStep.methodName] ?: emptySet()
 
@@ -765,16 +769,16 @@ class BehaveProcessor(
             for (raw in matchingRaw) {
                 val concreteValues = TypeValidator.extractConcreteValues(raw.text, genStep.originalText)
                 for ((i, value) in concreteValues.withIndex()) {
-                    if (i >= placeholderTypes.size) break
                     if (i in castIndices) continue // @BehaveCast suppresses validation
-                    val expectedType = placeholderTypes[i]
-                    val pattern = TypeValidator.typeValidationPatterns[expectedType] ?: continue
-                    if (!pattern.matches(value)) {
-                        logger.error(
-                            "Type mismatch in scenario '${raw.scenarioName}': " +
-                                "value '$value' does not match {$expectedType} in step '${raw.keyword} ${raw.text}'",
-                            classDecl,
-                        )
+                    val enumType = genStep.typeConversions[i]
+                    val enumConsts = enumType?.let { enumConstants[it] }
+                    when {
+                        // Enum params: the generated code calls Enum.valueOf(value.uppercase()),
+                        // which throws at runtime for an unknown constant. Reject it at compile time.
+                        enumConsts != null ->
+                            enumMismatchError(value, enumType, enumConsts, raw)?.let { logger.error(it, classDecl) }
+                        i < placeholderTypes.size ->
+                            placeholderMismatchError(value, placeholderTypes[i], raw)?.let { logger.error(it, classDecl) }
                     }
                 }
             }
@@ -810,4 +814,62 @@ class BehaveProcessor(
         val rowClassName = methodName.replaceFirstChar { it.uppercase() } + "Row"
         return listOf(io.mcol.behave.ksp.CodeGenerator.StepParam("rows", "List<$rowClassName>"))
     }
+}
+
+/**
+ * For every `@Type(SomeEnum::class)` parameter on [classDecl] (and its `@StepsMixin`
+ * supertypes) whose target is an enum, collect that enum's constant names keyed by the same
+ * qualified type name `extractTypeConversions` produces. Used to reject feature literals that
+ * name no real constant — which would otherwise blow up at runtime inside `valueOf(...)`.
+ */
+private fun collectEnumConstants(classDecl: KSClassDeclaration): Map<String, Set<String>> {
+    val result = mutableMapOf<String, Set<String>>()
+    fun scan(func: KSFunctionDeclaration) {
+        func.parameters.forEach { param ->
+            val decl = param.annotations
+                .firstOrNull { it.shortName.asString() == "Type" }
+                ?.arguments?.firstOrNull { it.name?.asString() == "type" }?.value
+                ?.let { it as? KSType }?.declaration as? KSClassDeclaration
+            if (decl != null && decl.classKind == ClassKind.ENUM_CLASS) {
+                val pkg = decl.packageName.asString()
+                val typeName = if (pkg.isNotEmpty()) "$pkg.${decl.simpleName.asString()}" else decl.simpleName.asString()
+                result[typeName] = decl.declarations
+                    .filterIsInstance<KSClassDeclaration>()
+                    .filter { it.classKind == ClassKind.ENUM_ENTRY }
+                    .map { it.simpleName.asString() }
+                    .toSet()
+            }
+        }
+    }
+    classDecl.getDeclaredFunctions().forEach(::scan)
+    classDecl.superTypes
+        .mapNotNull { it.resolve().declaration as? KSClassDeclaration }
+        .filter { it.classKind == ClassKind.INTERFACE && it.annotations.any { a -> a.shortName.asString() == "StepsMixin" } }
+        .forEach { it.getDeclaredFunctions().forEach(::scan) }
+    return result
+}
+
+/** Diagnostic for an enum literal that names no real constant; null when [value] is valid. */
+private fun enumMismatchError(
+    value: String,
+    enumType: String,
+    constants: Set<String>,
+    raw: FeatureFileParser.RawStep,
+): String? {
+    if (value.uppercase() in constants) return null
+    return "Invalid enum value in scenario '${raw.scenarioName}': '$value' is not a constant of " +
+        "${enumType.substringAfterLast('.')} (expected one of ${constants.sorted().joinToString()}) " +
+        "in step '${raw.keyword} ${raw.text}'"
+}
+
+/** Diagnostic for a concrete value that doesn't match its built-in placeholder type; null when valid. */
+private fun placeholderMismatchError(
+    value: String,
+    expectedType: String,
+    raw: FeatureFileParser.RawStep,
+): String? {
+    val pattern = TypeValidator.typeValidationPatterns[expectedType] ?: return null
+    if (pattern.matches(value)) return null
+    return "Type mismatch in scenario '${raw.scenarioName}': value '$value' does not match " +
+        "{$expectedType} in step '${raw.keyword} ${raw.text}'"
 }
