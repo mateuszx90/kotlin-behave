@@ -869,7 +869,17 @@ private fun placeholderMismatchError(
     raw: FeatureFileParser.RawStep,
 ): String? {
     val pattern = TypeValidator.typeValidationPatterns[expectedType] ?: return null
-    if (pattern.matches(value)) return null
-    return "Type mismatch in scenario '${raw.scenarioName}': value '$value' does not match " +
-        "{$expectedType} in step '${raw.keyword} ${raw.text}'"
+    if (!pattern.matches(value)) {
+        return "Type mismatch in scenario '${raw.scenarioName}': value '$value' does not match " +
+            "{$expectedType} in step '${raw.keyword} ${raw.text}'"
+    }
+    // The regex accepts any run of digits, but the generated code parses {int}/{long} via
+    // toInt()/toLong(), which overflow at runtime for values outside the Kotlin type's range.
+    val overflowType = when (expectedType) {
+        "int" -> if (value.toIntOrNull() == null) "Int" else null
+        "long" -> if (value.toLongOrNull() == null) "Long" else null
+        else -> null
+    } ?: return null
+    return "Numeric overflow in scenario '${raw.scenarioName}': value '$value' does not fit in " +
+        "$overflowType in step '${raw.keyword} ${raw.text}'"
 }
