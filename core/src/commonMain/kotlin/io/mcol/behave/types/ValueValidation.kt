@@ -22,12 +22,15 @@ public object ValueValidation {
         return "'$value' is not a constant of $enumName (expected one of ${constants.sorted().joinToString()})"
     }
 
-    /** Runtime conversion: resolve [value] to a `T` case-insensitively, or throw the same message. */
-    public inline fun <reified T : Enum<T>> toEnum(value: String): T {
-        val match = enumValues<T>().firstOrNull { it.name.equals(value, ignoreCase = true) }
+    /**
+     * Runtime conversion: resolve [value] to one of [constants] case-insensitively, or throw the
+     * same message. Non-inline (the generated code passes `SomeEnum.values()`) so it imposes no
+     * JVM-target floor on consumers.
+     */
+    public fun <T : Enum<T>> toEnum(value: String, constants: Array<T>, enumName: String): T {
+        val match = constants.firstOrNull { it.name.equals(value, ignoreCase = true) }
         if (match != null) return match
-        val enumName = T::class.simpleName ?: "enum"
-        val names = enumValues<T>().map { it.name }
+        val names = constants.map { it.name }
         throw IllegalArgumentException("Invalid enum value: ${enumProblem(value, enumName, names) ?: "'$value' is invalid"}")
     }
 

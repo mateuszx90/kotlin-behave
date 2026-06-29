@@ -30,13 +30,13 @@ class ValueValidationTest {
 
     @Test
     fun `toEnum resolves case-insensitively`() {
-        assertEquals(Color.RED, ValueValidation.toEnum<Color>("red"))
-        assertEquals(Color.BLUE, ValueValidation.toEnum<Color>("BLUE"))
+        assertEquals(Color.RED, ValueValidation.toEnum("red", Color.values(), "Color"))
+        assertEquals(Color.BLUE, ValueValidation.toEnum("BLUE", Color.values(), "Color"))
     }
 
     @Test
     fun `toEnum throws the shared message for an unknown value`() {
-        val ex = assertFailsWith<IllegalArgumentException> { ValueValidation.toEnum<Color>("purple") }
+        val ex = assertFailsWith<IllegalArgumentException> { ValueValidation.toEnum("purple", Color.values(), "Color") }
         val message = assertNotNull(ex.message)
         assertTrue("'purple'" in message)
         assertTrue("BLUE, GREEN, RED" in message)
