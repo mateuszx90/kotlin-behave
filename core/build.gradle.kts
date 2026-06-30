@@ -22,7 +22,9 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(project(":gherkin"))
+            // api (not implementation) so consumers — including KSP-generated step code that calls
+            // io.mcol.behave.gherkin.ValueValidation at runtime — see :gherkin transitively.
+            api(project(":gherkin"))
             // withTimeout for the per-step timeout in GherkinRunner.
             implementation(libs.kotlinx.coroutines.core)
         }

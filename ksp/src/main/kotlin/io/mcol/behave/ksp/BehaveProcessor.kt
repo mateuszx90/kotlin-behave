@@ -902,7 +902,7 @@ private fun dataTableConflictErrors(
     }
 }
 
-// Per-value diagnostics. The RULE (and wording) lives in the shared io.mcol.behave.types.ValueValidation,
+// Per-value diagnostics. The RULE (and wording) lives in the shared io.mcol.behave.gherkin.ValueValidation,
 // which the generated runtime conversions also use — so build-time and runtime can't disagree. These
 // wrappers add the scenario/step context the runtime can't know.
 
@@ -913,7 +913,7 @@ private fun enumMismatchError(
     constants: Set<String>,
     raw: FeatureFileParser.RawStep,
 ): String? {
-    val problem = io.mcol.behave.types.ValueValidation.enumProblem(value, enumType.substringAfterLast('.'), constants)
+    val problem = io.mcol.behave.gherkin.ValueValidation.enumProblem(value, enumType.substringAfterLast('.'), constants)
         ?: return null
     return "Invalid enum value in scenario '${raw.scenarioName}': $problem in step '${raw.keyword} ${raw.text}'"
 }
@@ -929,7 +929,7 @@ private fun builtinLiteralError(
     raw: FeatureFileParser.RawStep,
 ): String? {
     if (typeName != "kotlin.time.Duration") return null
-    val problem = io.mcol.behave.types.ValueValidation.durationProblem(value) ?: return null
+    val problem = io.mcol.behave.gherkin.ValueValidation.durationProblem(value) ?: return null
     return "Invalid Duration literal in scenario '${raw.scenarioName}': $problem in step '${raw.keyword} ${raw.text}'"
 }
 
@@ -946,6 +946,6 @@ private fun placeholderMismatchError(
     }
     // The regex accepts any run of digits, but the generated code parses {int}/{long} via
     // toInt()/toLong(), which overflow at runtime for values outside the Kotlin type's range.
-    val problem = io.mcol.behave.types.ValueValidation.numericRangeProblem(value, expectedType) ?: return null
+    val problem = io.mcol.behave.gherkin.ValueValidation.numericRangeProblem(value, expectedType) ?: return null
     return "Numeric overflow in scenario '${raw.scenarioName}': $problem in step '${raw.keyword} ${raw.text}'"
 }

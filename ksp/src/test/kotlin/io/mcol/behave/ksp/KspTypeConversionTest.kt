@@ -48,7 +48,7 @@ class KspTypeConversionTest {
         // The parameter keeps its token-derived name ("string"); only its type is converted.
         assertContains(spec, "suspend fun iPick(string: Color)")
         // Enums (no @TypeConverter) resolve case-insensitively via the shared runtime validator.
-        assertContains(spec, "io.mcol.behave.types.ValueValidation.toEnum(params[0] as String, gen.color.Color.values(), \"Color\")")
+        assertContains(spec, "io.mcol.behave.gherkin.ValueValidation.toEnum(params[0] as String, gen.color.Color.values(), \"Color\")")
     }
 
     @Test

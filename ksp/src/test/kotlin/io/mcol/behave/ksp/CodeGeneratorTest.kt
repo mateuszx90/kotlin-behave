@@ -403,7 +403,7 @@ class CodeGeneratorTest {
     fun `enum Type without a converter generates a case-insensitive toEnum`() {
         val source = CodeGenerator.render(ifaceWithConversion("com.example.Color"))
         assertTrue(
-            source.contains("io.mcol.behave.types.ValueValidation.toEnum(params[0] as String, com.example.Color.values(), \"Color\")"),
+            source.contains("io.mcol.behave.gherkin.ValueValidation.toEnum(params[0] as String, com.example.Color.values(), \"Color\")"),
             "Expected enum toEnum conversion, got:\n$source",
         )
     }
@@ -412,7 +412,7 @@ class CodeGeneratorTest {
     fun `Duration Type uses the built-in parse without a hand-written converter`() {
         val source = CodeGenerator.render(ifaceWithConversion("kotlin.time.Duration"))
         assertTrue(
-            source.contains("io.mcol.behave.types.ValueValidation.toDuration((params[0] as String))"),
+            source.contains("io.mcol.behave.gherkin.ValueValidation.toDuration((params[0] as String))"),
             "Expected the Duration built-in parse, got:\n$source",
         )
         assertFalse(source.contains("Duration.valueOf"), "Duration must not fall through to enum valueOf")
