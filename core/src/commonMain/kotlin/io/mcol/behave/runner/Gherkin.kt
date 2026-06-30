@@ -14,6 +14,12 @@ private val featureCache = mutableMapOf<String, Feature>()
  */
 fun loadFeature(path: String): Feature = featureCache.getOrPut(path) {
     val content = FeatureRegistry.get(path) ?: readResource(path)
+    // Reject the same structural problems the build does (on JVM; no-op elsewhere) so a feature
+    // edited after the build fails fast instead of running silently wrong.
+    val errors = featureStructureErrors(content)
+    if (errors.isNotEmpty()) {
+        throw IllegalArgumentException("Invalid feature '$path':\n" + errors.joinToString("\n") { "  $it" })
+    }
     GherkinParser.parse(content)
 }
 
