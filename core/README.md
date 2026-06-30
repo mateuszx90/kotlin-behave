@@ -99,7 +99,7 @@ The KSP processor predicts, at build time, failures the runtime would otherwise 
 Because the placeholder patterns are shared, a value the runtime can match is exactly a value the
 validator accepts — there is no class of input that passes one and fails the other on shape.
 
-The enum / `Duration` / numeric-range **rules** are shared too: `io.mcol.behave.types.ValueValidation`
+The enum / `Duration` / numeric-range **rules** are shared too: `io.mcol.behave.gherkin.ValueValidation`
 exposes a build-time predicate (used by the KSP processor) and a runtime conversion (called by the
 generated code) backed by the *same* logic and wording. So when a value escapes compile-time — a
 `.feature` edited after the build, or a dynamically-registered type — the runtime fails with the same

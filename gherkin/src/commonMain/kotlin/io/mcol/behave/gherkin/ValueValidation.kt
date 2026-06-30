@@ -1,14 +1,16 @@
-package io.mcol.behave.types
+package io.mcol.behave.gherkin
 
 import kotlin.time.Duration
 
 /**
- * Shared value-validation rules, used by BOTH sides so they can never disagree:
+ * Shared value-validation rules, used by every consumer so they can never disagree:
  *  - the KSP processor calls the `*Problem` functions to predict a failure at **build time**
- *    (returning a message, or null when the value is fine), and
+ *    (returning a message, or null when the value is fine),
  *  - the generated runtime conversions call `toEnum` / `toDuration` to **fail fast with the same
- *    rule** (and the same wording) instead of a raw `valueOf` / `parse` exception.
+ *    rule** (and the same wording) instead of a raw `valueOf` / `parse` exception, and
+ *  - the Gradle `BehaveLint` task and the IntelliJ plugin can reuse the same `*Problem` rules.
  *
+ * Lives in `:gherkin` (the module every consumer depends on) so there is a single source of truth.
  * This matters whenever compile-time can't cover a value: a `.feature` edited after the build
  * (features are re-read at runtime) or a dynamically-registered type.
  */

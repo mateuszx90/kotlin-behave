@@ -339,8 +339,9 @@ internal object CodeGenerator {
                         // Otherwise an enum: resolve case-insensitively via the shared validator so a
                         // bad value throws the same friendly message the KSP processor predicts.
                         val enumSimple = conversion.substringAfterLast('.')
+                        val toEnum = "io.mcol.behave.gherkin.ValueValidation.toEnum"
                         out.appendLine(
-                            "        val p${i + 1} = io.mcol.behave.types.ValueValidation.toEnum(params[$i] as String, $conversion.values(), \"$enumSimple\")",
+                            "        val p${i + 1} = $toEnum(params[$i] as String, $conversion.values(), \"$enumSimple\")",
                         )
                     }
                 } else {
@@ -479,7 +480,7 @@ internal object CodeGenerator {
      */
     internal val builtinScalarConversions: Map<String, (String) -> String> =
         mapOf(
-            "kotlin.time.Duration" to { acc: String -> "io.mcol.behave.types.ValueValidation.toDuration($acc)" },
+            "kotlin.time.Duration" to { acc: String -> "io.mcol.behave.gherkin.ValueValidation.toDuration($acc)" },
         )
 
     /**

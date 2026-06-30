@@ -1,4 +1,4 @@
-package io.mcol.behave.types
+package io.mcol.behave.gherkin
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
