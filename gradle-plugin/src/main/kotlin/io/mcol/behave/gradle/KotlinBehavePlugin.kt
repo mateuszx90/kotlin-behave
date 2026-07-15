@@ -53,6 +53,15 @@ class KotlinBehavePlugin : Plugin<Project> {
         val lint = project.tasks.register("behaveLint", BehaveLintTask::class.java) {
             group = "verification"
             description = "Parses every .feature (failing on unparseable ones) and reports dead step definitions."
+
+            reportFile.convention(
+                project.layout.buildDirectory.file("reports/behave/lint-report.txt"),
+            )
+
+            featureDir.convention(
+                project.layout.projectDirectory.dir("src/test/resources"),
+            )
+
             stepSources.from(
                 project.layout.projectDirectory.dir("src/test/kotlin"),
                 project.layout.projectDirectory.dir("src/commonTest/kotlin"),
