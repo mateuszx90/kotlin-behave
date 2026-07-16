@@ -6,7 +6,7 @@ kotest-plugin = "6.2.1"
 ksp = "2.3.9"
 detekt = "1.23.8"
 spotless = "8.8.0"
-license-report = "2.9"
+license-report = "3.1.4"
 kotlinpoet = "2.3.0"
 kctfork = "0.7.1"
 
