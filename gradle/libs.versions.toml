@@ -8,7 +8,7 @@ detekt = "1.23.8"
 spotless = "8.8.0"
 license-report = "3.1.4"
 kotlinpoet = "2.3.0"
-kctfork = "0.7.1"
+kctfork = "0.13.0"
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
