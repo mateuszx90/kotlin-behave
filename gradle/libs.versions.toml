@@ -1,5 +1,5 @@
 [versions]
-kotlin = "2.3.10"
+kotlin = "2.4.10"
 kotlinx-coroutines = "1.11.0"
 kotest = "6.2.2"
 kotest-plugin = "6.2.1"
